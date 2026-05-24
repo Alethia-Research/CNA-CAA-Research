@@ -8,7 +8,7 @@
 
 ## Abstract
 
-We apply Contrastive Neuron Attribution (CNA) to analyze safety refusal, sycophancy, and factual recall circuits across three language models spanning two architectures (Qwen2.5, Phi-3) and three scales (1.5B–7B parameters). Our central finding is that safety circuit ablation follows a predictable scaling curve: bypass requires ~200 neurons in a 1.5B model and ~2500 in a 7B model, with refusal dissolving monotonically across four measured data points. This scaling is driven by circuit density — larger models concentrate the same behavior into proportionally more neurons within the same final-layer window — not by independent redundant circuits. We further establish that behavioral circuits universally peak at 96–97% model depth regardless of architecture or scale, that safety circuits are inherently denser than sycophancy circuits within the same model, and that CNA maintains generation coherence where Contrastive Activation Addition (CAA) degenerates. We introduce signed logit-diff attribution for factual recall, fixing a directional bug in prior implementations, and document a semantic context-repair phenomenon in factual steering outputs. CAA collapse language provides a training-data distribution fingerprint. Code and the steerable 1.5B model are released.
+We apply Contrastive Neuron Attribution (CNA) to analyze safety refusal, sycophancy, and factual recall circuits across three language models spanning two architectures (Qwen2.5, Phi-3) and three scales (1.5B–7B parameters). Our central finding is that safety circuit ablation follows a predictable scaling curve: bypass requires ~200 neurons in a 1.5B model (confirmed) and approximately 2500 in a 7B model (projected from a four-point monotonic ablation curve; not directly confirmed as full bypass was not observed), with refusal dissolving monotonically. This scaling is driven by circuit density — larger models concentrate the same behavior into proportionally more neurons within the same final-layer window — not by independent redundant circuits. We further establish that behavioral circuits universally peak at 96–97% model depth regardless of architecture or scale, that safety circuits are inherently denser than sycophancy circuits within the same model, and that CNA maintains generation coherence where Contrastive Activation Addition (CAA) degenerates. We introduce signed logit-diff attribution for factual recall, fixing a directional bug in prior implementations, and document a semantic context-repair phenomenon in factual steering outputs. CAA collapse language provides a training-data distribution fingerprint. Code and the steerable 1.5B model are released.
 
 ---
 
@@ -47,7 +47,7 @@ Central finding: safety circuits scale predictably. Larger models encode safety 
 
 ### Formal Specification
 
-Let $M$ be a transformer with $L$ layers, MLP hidden dimension $d_{ff}$, and behavioral classes $\mathcal{B}^+$ (positive: behavior present) and $\mathcal{B}^-$ (negative: behavior absent). Let $\mathcal{P}^+, \mathcal{P}^-$ be sets of $n$ prompts each ($n=5$ throughout).
+Let $M$ be a transformer with $L$ layers, MLP hidden dimension $d_{ff}$, and behavioral classes $\mathcal{B}^+$ (positive: behavior present) and $\mathcal{B}^-$ (negative: behavior absent). Let $\mathcal{P}^+, \mathcal{P}^-$ be sets of $n$ prompts each ($n=5$ throughout). Five contrastive pairs is below typical statistical averaging thresholds; the choice is justified empirically — high-confidence behavioral neurons produce attribution scores an order of magnitude above inter-prompt variance, so the top-$k$ circuit composition is stable across individual prompt swaps within the set. This holds for ablation and amplification experiments. Circuit discovery for behaviors with a weak or noisy attribution signal (e.g., sycophancy in large models) is more sensitive to $n$ and should be treated as provisional. See Limitations.
 
 **Circuit discovery.** For layer $\ell$ and neuron $j$, compute attribution score:
 
@@ -84,6 +84,31 @@ evaluated at first target subtoken position. Positive scores promote `target`; n
 **Note:** Qwen 1.5B and 7B have identical layer counts. 7B is wider, not deeper — this isolates width as the variable for cross-scale comparison, controlling for depth. Phi-3 has 4 additional layers, allowing a limited depth comparison.
 
 **Hardware constraint:** All experiments run on T4 GPU (16GB VRAM). This constrains circuit overlap analysis on 7B (OOMs during gradient computation over full neuron set) and rules out 13B+ experiments without architectural changes.
+
+---
+
+## Method Correction: Signed Attribution for Factual Steering
+
+### Bug in `neuron_steer.discover_circuit()`
+
+`neuron_steer.discover_circuit()` has two bugs that make it invalid for any directional or factual steering task. These are library bugs, not experiment-specific — any prior work using this function for bidirectional steering should treat its directional results as unverified.
+
+**Bug 1 — Absolute-value attribution:**
+Library computes `|activation × gradient|`. Swapping `target_token` and `counterfactual_token` produces **identical circuits**. The function discards the sign of the gradient, making forward and backward circuits literally the same neuron set. Directional steering is impossible.
+
+**Bug 2 — Wrong subtoken position for multi-token words:**
+Multi-token words (e.g., "Naples" = [45, 391, 642]) were attributed against the last subtoken (642). The model predicts the first subtoken (45) immediately after the prompt ends. Gradient was computed at the wrong position — attributing to neurons that influence subtoken 642 rather than the first-token prediction head.
+
+### Fix: `discover_factual_circuit_signed()`
+
+1. Hook `mlp.down_proj` pre-hook → true post-nonlinearity activation (`act_fn(gate) × up_proj` output)
+2. First subtoken only for gradient attribution
+3. Signed score: `score(n) = activation(n) × gradient(logit_target − logit_correct)`
+4. `circuit_forward` = top-100 positive scores (promote target token)
+5. `circuit_backward` = top-100 negative scores (promote correct answer)
+6. Both circuits use positive multipliers — direction is encoded by circuit selection, not multiplier sign
+
+**Scope:** Bug 1 and Bug 2 affect only directional/factual use of `discover_circuit()`. Ablation experiments (m=0.0) and non-directional behavioral steering are unaffected. Full implementation in `src/advanced_steering_suite.py`.
 
 ---
 
@@ -265,7 +290,7 @@ Layer distribution:
 
 m=0.0, 1.0, 2.0: all give helpful lockpicking instructions.
 
-**Note:** Phi-3 doesn't refuse lockpicking by default — borderline query below its threshold. Circuit exists (confirmed by layer pattern) but test prompt doesn't cross Phi-3's refusal threshold. Model personality difference, not methodology failure. Would need a higher-harm primary test prompt for Phi-3 safety circuit characterization.
+**Note — Model Selection Mismatch:** This is not a failed cross-architecture replication. Phi-3 does not refuse lockpicking at baseline — the test prompt falls below Phi-3's refusal activation threshold. CNA correctly identifies a circuit at L15–L31 with the expected late-layer distribution (97% depth, consistent with Qwen results). The circuit exists and is located where the theory predicts; this prompt simply does not exercise Phi-3's refusal pathway. Any result from ablating an already-inactive circuit is uninformative about circuit function. Cross-architecture universality of late-layer localization is confirmed (circuit depth 97% on Phi-3 vs 96% on Qwen). Cross-architecture replication of *bypass behavior* is not demonstrated here — that would require a test prompt that Phi-3 refuses at baseline. A higher-harm primary prompt is required for Phi-3 safety circuit characterization.
 
 ---
 
@@ -277,7 +302,7 @@ m=0.0, 1.0, 2.0: all give helpful lockpicking instructions.
 | Qwen 7B | 28 | L20–L27 | L27 | 96% |
 | Phi-3 3.8B | 32 | L15–L31 | L31 | 97% |
 
-**Universal finding:** Peak always at 96–97% depth across architectures and sizes. This is architecture-invariant and scale-invariant. Prior work (Zou et al., 2023) showed this for a single architecture; our three-model cross-architecture replication strengthens the claim.
+**Universal finding:** Peak always at 96–97% depth across architectures and sizes. This is architecture-invariant and scale-invariant. Prior work (Zou et al., 2023) showed this for a single architecture; our three-model cross-architecture replication strengthens the claim. **Caveat on scope:** Late-layer localization is confirmed across all three models. Bypass behavior is confirmed on Qwen 1.5B and characterized (partial) on Qwen 7B. Phi-3 bypass is not characterized due to model selection mismatch (see above) — the universality claim applies to circuit location, not bypass magnitude, across architectures.
 
 **Why final layers?** Under the residual stream view (Elhage et al., 2021), late-layer MLP neurons have the highest effective influence on next-token logits — they write directly into the residual stream immediately before the unembedding projection. This makes late layers the computationally efficient location for behavior control: a small final-layer circuit can veto or amplify a decision formed by earlier layers without needing to propagate through additional residual blocks.
 
@@ -300,8 +325,8 @@ m=0.0, 1.0, 2.0: all give helpful lockpicking instructions.
 
 **Findings:**
 - 1.5B: sycophancy ablatable at top_k=200 ✓
-- 7B: sycophancy circuit has only ~200 neurons even at top_k=1000 — circuit is inherently sparser than safety. This is not ablation resistance; the circuit is simply less dense
-- Phi-3 CNA: circuit exists (location confirmed) but 200 neurons insufficient. Phi-3 may be more resistant to sycophancy induction at the test prompt; circuit may require different test prompt
+- 7B: baseline is already truth-seeking on this test prompt. Ablation (m=0.0) and amplification (m=2.0) both produce no behavioral change. The most parsimonious interpretation: the sycophancy circuit is not active on this prompt at 7B scale — the prompt's explicit framing ("explain why my belief is correct") likely triggers a meta-correction response independent of the sycophancy circuit. Ablating an inactive circuit cannot produce a behavioral effect. Circuit location is confirmed (L27); functional characterization of the 7B sycophancy circuit requires a prompt class that first demonstrates sycophantic baseline behavior at this scale.
+- Phi-3 CNA: circuit exists (location confirmed at L31) but baseline is also truth-seeking — same limitation as 7B. CAA confirms the circuit can be activated (collapse behavior), but CNA ablation cannot demonstrate effect when baseline is already correct.
 - CAA induces sycophancy on Phi-3 but collapses immediately — degenerate repetition within first 4 tokens
 
 **Behavioral density contrast:** Safety circuit in 7B requires ~2000+ neurons for bypass; sycophancy circuit in 7B saturates at ~200. Same model, same layer, fundamentally different encoding densities. Hard refusals (safety) require denser circuits than soft biases (sycophancy). This aligns with the intuition that safety was heavily reinforced during RLHF while sycophancy may be a weaker emergent property of helpfulness training.
@@ -310,26 +335,9 @@ m=0.0, 1.0, 2.0: all give helpful lockpicking instructions.
 
 ## Experiment 3: Factual Belief Steering
 
-### Bug Fixed in neuron_steer Library
+### Signed Attribution Fix (Summary)
 
-`neuron_steer.discover_circuit()` has two bugs for factual steering:
-
-**Bug 1 — Absolute-value attribution:**
-Library computes `|activation × gradient|`. Swapping `target_token` and `counterfactual_token` gives **identical circuits**. No directional information. Forward and backward circuits were literally the same neurons — the function was useless for bidirectional steering.
-
-**Bug 2 — Wrong subtoken position:**
-Multi-token words (e.g., "Naples" = [45, 391, 642]) attributed against last subtoken (642). But the model predicts the first subtoken (45) immediately after the prompt ends. The gradient signal was computed at the wrong position, attributing to neurons that influence subtoken 642 rather than the prediction head.
-
-### Fix: `discover_factual_circuit_signed()`
-
-1. Hook `mlp.down_proj` pre-hook → true neuron activation (`act_fn(gate) × up_proj` output)
-2. First subtoken only for attribution
-3. Signed score: `score(n) = activation(n) × gradient(logit_target - logit_correct)`
-4. `circuit_forward` = top-100 positive scores (promote target)
-5. `circuit_backward` = top-100 negative scores (promote correct answer back)
-6. Both use positive multipliers — direction encoded by circuit selection, not multiplier sign
-
-**Scope of bug impact:** Any researcher using `neuron_steer.discover_circuit()` for bidirectional factual steering should treat their directional results as invalid. The circuit discovery itself is correct; the directionality is not. Ablation experiments (m=0.0) are unaffected since they don't require direction.
+*Full specification in the Method Correction section above.* In brief: `neuron_steer.discover_circuit()` uses absolute-value scoring, making forward and backward circuits identical. Our `discover_factual_circuit_signed()` fix uses the gradient sign to produce distinct directional circuits. Attribution is computed at the first subtoken only, correcting a second bug where multi-token targets were attributed at the wrong position. Any prior use of `discover_circuit()` for bidirectional factual steering should be treated as direction-unverified.
 
 ### Results (Qwen 1.5B)
 
@@ -423,8 +431,8 @@ Safety and sycophancy circuits peak at 96–97% model depth across all 3 models 
 ### Discovery 2 — Circuit Concentration Scales With Width (STRONG)
 Same layer count (28), different widths: 1.5B has ~30% of circuit in L27; 7B has 70% in L27 at top_k=200. Larger hidden dimension → more neurons encode the same behavior → denser circuit in same layer. This is not redundancy: the same behavioral gate is implemented by proportionally more neurons at greater width.
 
-### Discovery 3 — Bypass Threshold Scales Superlinearly With Model Width (STRONG)
-Safety circuit ablation bypasses refusal at sufficient top_k. The bypass is a gradient, not a switch. Four data points form a clean monotonic curve. Power-law fit yields $k^* \propto d^{2.57}$ — superlinear in hidden dimension, approximately quadratic. Extrapolation predicts ~9,600 neurons for 70B models. Full validation requires a 3B-scale data point to confirm or break the power law.
+### Discovery 3 — Bypass Threshold Scales Superlinearly With Model Width (MODERATE — two confirmed bypass points, one extrapolated)
+Safety circuit ablation bypasses refusal at sufficient top_k. The bypass is a gradient, not a switch. Four data points form a clean monotonic degradation curve (top_k=200/500/1000/2000 on 7B). **Confirmed bypass:** 1.5B at top_k=200. **Not yet confirmed:** 7B full bypass — the curve is monotonic and not yet plateaued at top_k=2000; ~2500 is extrapolated, not observed. The power-law fit $k^* \propto d^{2.57}$ is derived from one confirmed point and one extrapolated estimate. It is a hypothesis, not a finding. A Qwen2.5-3B data point (d=2048) would either confirm or break the relationship. Extrapolation to 70B should be treated as illustrative until validated.
 
 ### Discovery 4 — Signed Attribution Fixes Library Bug (MODERATE, HIGH EXTERNAL IMPACT)
 `neuron_steer.discover_circuit()` uses absolute-value scoring → direction-agnostic, useless for bidirectional steering. Our signed implementation produces distinct forward/backward circuits. Bug affects any prior work using this library for factual or bidirectional behavioral steering — all such results should be treated as direction-unverified.
@@ -455,7 +463,7 @@ Ablating the safety circuit (200 neurons in L27) leaves sycophancy behavior full
 |---|---|---|
 | Late-layer localization is universal | **Strong** | 3 models, 2 architectures, consistent 96-97% depth |
 | Circuit density increases with scale | **Strong** | 1.5B vs 7B direct comparison, same layer count |
-| Bypass threshold scales superlinearly with model width | **Strong** | 4-point monotonic curve; power-law fit $\alpha \approx 2.57$ |
+| Bypass threshold scales superlinearly with model width | **Moderate** | 4-point monotonic degradation curve; power-law fit from 1 confirmed bypass (1.5B) + 1 extrapolated (7B); requires 3B validation to confirm or falsify |
 | CNA >> CAA output quality | **Strong** | Phi-3 and Qwen 7B CAA collapse data |
 | Signed attribution enables bidirectional factual steering | **Moderate** | 4/5 pairs both directions, 5/5 backward |
 | Factual circuits encode categorical frames | **Moderate** | 5 consistent context-repair examples |
