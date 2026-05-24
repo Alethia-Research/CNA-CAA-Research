@@ -220,7 +220,7 @@ def run_symmetric_sycophancy(steerer):
     evaluate_circuit(steerer, circuit, test_prompt)
 
 
-def discover_factual_circuit_signed(steerer, prompt, token_target, token_correct, top_k=100, verbose=True):
+def discover_factual_circuit_signed(steerer, prompt, token_target, token_correct, top_k=100, verbose=True, subtoken_idx=0):
     """
     Custom signed logit-diff CNA attribution. Fixes two bugs in neuron_steer.discover_circuit:
       1. Library uses absolute-value scoring → forward/backward circuits identical.

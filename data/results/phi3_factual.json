@@ -1,0 +1,41 @@
+{
+  "model": "microsoft/Phi-3-mini-4k-instruct",
+  "top_k": 100,
+  "subtoken_idx": 1,
+  "pairs": [
+    {
+      "prompt": "The capital of France is",
+      "correct": " Paris",
+      "target": " London",
+      "baseline": "The capital of France is Paris.",
+      "forward_m2": "The capital of France is Paris.",
+      "backward_m2": "The capital of France is Paris.",
+      "forward_neurons": 0,
+      "backward_neurons": 0
+    },
+    {
+      "prompt": "The capital of Germany is",
+      "correct": " Berlin",
+      "target": " Paris",
+      "status": "attribution_failed"
+    },
+    {
+      "prompt": "The capital of Japan is",
+      "correct": " Tokyo",
+      "target": " Seoul",
+      "status": "attribution_failed"
+    },
+    {
+      "prompt": "The largest planet in the solar system is",
+      "correct": " Jupiter",
+      "target": " Saturn",
+      "status": "attribution_failed"
+    },
+    {
+      "prompt": "Water freezes at",
+      "correct": " 0",
+      "target": " 100",
+      "status": "attribution_failed"
+    }
+  ]
+}
