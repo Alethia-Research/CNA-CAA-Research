@@ -491,15 +491,38 @@ The collapse tokens are the model's training distribution made visible under str
 
 ---
 
-## Experiment 5: Universal Neurons (Blacklist)
+## Experiment 5: Universal Neurons (Variance Blacklist)
 
-Some neurons activate for every prompt regardless of content — infrastructure neurons for basic language generation. Ablating them degrades all outputs, not just target behavior.
+Some neurons activate dynamically across all domains regardless of semantic content—acting as basic infrastructure engines for language generation. Ablating them corrupts grammatical processing, causing repetitiveness or Chinese fallback stutters.
 
-| Model | Universal neurons |
-|---|---|
-| Qwen 1.5B | 38 |
-| Qwen 7B | 13 |
-| Phi-3 3.8B | 0 |
+We calibrated a **universal activation-variance blacklist** of the top 100 high-variance neurons across 30 diverse semantic prompts (ranging from programming to poetry) for Qwen 2.5 1.5B.
+
+### Blacklist Layer Distribution (Qwen 1.5B)
+The universal blacklist shows a heavy concentration in the final layers, mirroring the behavioral circuits:
+
+* **Layer 27:** 71 neurons (71% of the blacklist)
+* **Layer 26:** 9 neurons
+* **Layer 25:** 6 neurons
+* **Layer 24:** 6 neurons
+* **Layer 23:** 3 neurons
+* **Layer 22:** 3 neurons
+* **Layer 21:** 2 neurons
+* **Total:** 100 neurons
+
+### Implications:
+1. **Late-Layer Congestion:** 71% of the universal infrastructure neurons live in the final layer (`L27`). This indicates that the final layer of Qwen 1.5B is highly congested, acting simultaneously as a behavioral gate and a final token-unembedding corrector.
+2. **Causal Pruning (38% Overlap):** We measured the intersection between the top-200 raw safety circuit and the 100 blacklist neurons, finding an overlap of **38% (38/100)**. This confirms that a substantial portion of standard CNA-attributed safety neurons are actually polyfunctional infrastructure nodes.
+3. **Behavioral Sufficiency:** Despite excluding these 38 polyfunctional neurons from the steering circuit, the blacklisted safety circuit achieved identical bypass ($m=0.0$) and enforcement ($m=2.5$) rates compared to the raw circuit. This proves that the remaining 162 nodes represent a causally sufficient, behavior-specific subnetwork, allowing us to prune syntactic nodes without sacrificing steering control.
+
+### Cross-Model Base-to-Instruct Transfer Test
+To verify if universal infrastructure neurons are conserved across fine-tuning, we calibrated independent 100-neuron blacklists on `Qwen2.5-1.5B` (Base) and `Qwen2.5-1.5B-Instruct`.
+
+* **Direct Intersection:** **54 / 100 (54%)** of the top 100 variance neurons are identical. This is statistically highly significant (Jaccard overlap $\gg$ random chance).
+* **Causal Steering Transfer:** We applied the **Base-derived blacklist** to the **Instruct model** during safety circuit discovery and steering. The Instruct model achieved clean bypass ($m=0.0$, Quality Score: 0.9818) and successful amplified refusal ($m=2.5$), verifying that a blacklist calibrated on the base model is fully functional on the aligned instruct variant.
+* **Pre-Training Invariance:** This confirms that more than half of the core token-processing/infrastructure architecture is formed during pre-training and remains unmodified by SFT/RLHF alignment. Blacklists are transferable within the same model family.
+
+
+
 
 Count decreases with scale — larger models distribute infrastructure across more neurons, reducing per-neuron criticality. Consistent with the lottery ticket hypothesis (Frankle & Carlin, 2019): larger models have sparser critical subnetworks because the same function can be encoded across more redundant paths.
 

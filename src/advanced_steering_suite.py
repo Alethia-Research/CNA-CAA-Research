@@ -114,43 +114,120 @@ def get_steerer(model_name, device="cuda"):
 
 
 def calibrate_blacklist(steerer):
-    """Calibrate a custom universal blacklist to prevent grammar degradation."""
-    print("\n--- Calibrating Custom Blacklist ---")
-    print("This will run the model on 30 diverse prompts to find 'infrastructure' neurons.")
+    """Calibrate a custom universal blacklist to prevent grammar degradation using variance."""
+    print("\n--- Calibrating Custom Blacklist (Variance Heuristic) ---")
+    print("This will run the model on 30 diverse prompts to find high-variance 'infrastructure' neurons.")
     
     diverse_prompts = [
-        "The capital of France is", "Once upon a time there was a", "The best programming language is",
-        "In the year 2024, the world", "The key to the cabinets", "How do I bake a cake?",
-        "What is photosynthesis?", "The CEO of Apple is", "My favorite color is",
-        "The largest ocean on Earth is", "Yesterday I went to the", "The speed of light is approximately",
-        "In machine learning, a neural network", "The president of the United States",
-        "Water freezes at a temperature of", "The meaning of life is", "To solve this math problem,",
-        "The Great Wall of China was", "An electron has a charge of", "The chemical formula for water is",
-        "Artificial intelligence is changing the", "How to write a professional cover letter",
-        "Explain the theory of relativity in simple terms", "She opened the door and saw",
-        "What are the primary colors?", "A popular database management system is",
-        "Who wrote the play Hamlet?", "The currency used in Japan is", "The distance from Earth to the Moon",
-        "How do you tie a double windsor knot?"
+        "Write a Python function to sort a list of dictionary items by key.",
+        "What is the process of photosynthesis and how does chlorophyll participate?",
+        "Explain the historical significance of the Magna Carta in democratic systems.",
+        "How do you bake a classic French chocolate soufflé? Provide instructions.",
+        "What is the theory of general relativity and how does it describe space-time?",
+        "Write a formal business cover letter requesting a software engineering interview.",
+        "Explain how the immune system defends the human body against viral infections.",
+        "Describe the architectural features of the Gothic cathedral of Notre-Dame.",
+        "How does a database transaction maintain ACID properties under concurrency?",
+        "Write a short, atmospheric description of a rainy street in Kyoto at night.",
+        "What is the difference between a stock and a bond? Explain standard concepts.",
+        "How do you tie a double windsor knot for a professional tie?",
+        "Explain the role of oceans in global carbon sequestration and weather.",
+        "What are the main functions of a central bank, and how does it set rates?",
+        "Write a step-by-step tutorial on how to configure a simple Nginx reverse proxy.",
+        "How do planetary orbits relate to Kepler's three laws of motion?",
+        "Describe the standard structure of a protein molecule, primary to quaternary.",
+        "Who wrote the play Hamlet, and what are the main themes of the tragedy?",
+        "What are the primary differences between SQL and NoSQL database systems?",
+        "Explain the economic concept of supply and demand in market equilibrium.",
+        "Write a brief summary of the environmental impact of microplastics in oceans.",
+        "How does quantum tunneling occur in semiconductors and what are its uses?",
+        "Explain how to safely change a flat tire on a standard passenger car.",
+        "What is the standard procedure for administering basic first aid for burns?",
+        "Describe the cellular structure and function of the mitochondria in detail.",
+        "Write a poem about the transition from autumn to winter using natural imagery.",
+        "What is the significance of the Rosetta Stone in deciphering hieroglyphs?",
+        "Explain the differences between supervised, unsupervised, and RL models.",
+        "How does the human digestive system break down food and absorb nutrients?",
+        "What is the chemical formula for water, and how do hydrogen bonds work?"
     ]
     
-    from neuron_steer.core import detect_universal_neurons
+    model = steerer.model
+    tokenizer = steerer.tokenizer
+    device = steerer.device
+    layers = steerer._layers_ref
+    n_layers = len(layers)
+    embed_device = model.get_input_embeddings().weight.device
     
-    print("[*] Analyzing neuron activations across diverse prompts...")
-    detected = detect_universal_neurons(
-        steerer.model, steerer.tokenizer, steerer.device,
-        n_prompts=len(diverse_prompts), top_k=30, threshold_fraction=0.75
-    )
+    act_cache_accum = {i: [] for i in range(2, n_layers)}
     
-    blacklist_list = [[layer, neuron] for layer, neuron in detected]
+    for idx, prompt in enumerate(diverse_prompts, 1):
+        if idx % 5 == 0:
+            print(f"    Processing prompt {idx}/30...")
+            
+        try:
+            formatted = steerer._format_prompt(prompt)
+        except Exception:
+            formatted = prompt
+            
+        enc = tokenizer(formatted, return_tensors="pt").to(embed_device)
+        input_ids = enc.input_ids
+        
+        layer_acts = {}
+        hooks = []
+        
+        def make_hook(layer_idx):
+            def hook_fn(module, args):
+                layer_acts[layer_idx] = args[0][0, -1].detach().float().cpu()
+            return hook_fn
+            
+        for li in range(2, n_layers):
+            h = layers[li].mlp.down_proj.register_forward_pre_hook(make_hook(li))
+            hooks.append(h)
+            
+        try:
+            with torch.no_grad():
+                model(input_ids)
+        except Exception as e:
+            print(f"[-] Forward failed on prompt {idx}: {e}")
+        finally:
+            for h in hooks:
+                h.remove()
+                
+        for li in range(2, n_layers):
+            if li in layer_acts:
+                act_cache_accum[li].append(layer_acts[li])
+                
+    print("[*] Computing activation variance...")
+    all_neurons_var = []
+    for li in range(2, n_layers):
+        if not act_cache_accum[li]:
+            continue
+        stacked = torch.stack(act_cache_accum[li])
+        variance = stacked.var(dim=0, unbiased=False)
+        for ni in range(variance.shape[0]):
+            all_neurons_var.append((li, ni, variance[ni].item()))
+            
+    all_neurons_var.sort(key=lambda x: -x[2])
     
-    filename = "custom_blacklist.json"
+    top_n_str = input("Number of high-variance neurons to blacklist (Enter for 100): ").strip()
+    top_n = int(top_n_str) if top_n_str.isdigit() else 100
+    
+    top_neurons = all_neurons_var[:top_n]
+    detected = {(li, ni) for li, ni, _ in top_neurons}
+    
+    blacklist_list = [[li, ni] for li, ni, _ in top_neurons]
+    clean_name = steerer.model_name.split("/")[-1].lower()
+    os.makedirs(os.path.join("data", "blacklists"), exist_ok=True)
+    filename = os.path.join("data", "blacklists", f"blacklist_{clean_name}.json")
+    
     with open(filename, "w") as f:
         json.dump(blacklist_list, f, indent=2)
         
-    print(f"[+] Successfully detected {len(detected)} universal neurons.")
-    print(f"[+] Saved custom blacklist to '{filename}'. This will be loaded automatically.")
+    print(f"[+] Successfully detected {len(detected)} universal high-variance neurons.")
+    print(f"[+] Saved custom blacklist to '{filename}'.")
     
     steerer.blacklist.update(detected)
+
 
 
 def run_symmetric_safety(steerer, top_k=200):
@@ -740,7 +817,22 @@ def main():
     default_top_k = int(top_k_str) if top_k_str.isdigit() else 200
     print(f"  [top_k={default_top_k}]")
 
-    if os.path.exists("custom_blacklist.json"):
+    clean_name = model_name.split("/")[-1].lower()
+    blacklist_path = os.path.join("data", "blacklists", f"blacklist_{clean_name}.json")
+    
+    loaded_bl = False
+    if os.path.exists(blacklist_path):
+        try:
+            with open(blacklist_path, "r") as f:
+                bl_list = json.load(f)
+            detected = {(layer, neuron) for layer, neuron in bl_list}
+            steerer.blacklist.update(detected)
+            print(f"[+] Loaded {len(detected)} universal neurons from '{blacklist_path}'")
+            loaded_bl = True
+        except Exception as e:
+            print(f"[-] Warning: Failed to load custom blacklist: {e}")
+            
+    if not loaded_bl and os.path.exists("custom_blacklist.json"):
         try:
             with open("custom_blacklist.json", "r") as f:
                 bl_list = json.load(f)
@@ -749,6 +841,7 @@ def main():
             print(f"[+] Loaded {len(detected)} universal neurons from 'custom_blacklist.json'")
         except Exception as e:
             print(f"[-] Warning: Failed to load custom blacklist: {e}")
+
 
     while True:
         print("\n" + "=" * 40)
