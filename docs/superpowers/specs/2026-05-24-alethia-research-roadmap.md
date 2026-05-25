@@ -11,8 +11,8 @@
 | Phase | Name | Status | Target |
 |---|---|---|---|
 | 1 | Contrastive Neuron Attribution (CNA) — Core | DONE | Qwen2.5-1.5B-Instruct |
-| 2 | CNA Scale-Up + Cross-Model Analysis | NEXT | 7B, 72B, Llama vs Qwen |
-| 3 | Universal Blacklist Optimization | PLANNED | Model-agnostic transfer |
+| 2 | CNA Scale-Up + Cross-Model Analysis | DONE | 7B, 72B, Llama vs Qwen |
+| 3 | Universal Blacklist Optimization | DONE | Model-agnostic transfer |
 | 4 | GRPO Reasoning Training | PLANNED | 1.5B–3B reasoning model |
 | 5 | Model Merging / FrankenMoE | PLANNED | CPU-native capability stacking |
 | B | Sub-Ternary Quantization | STRETCH | Edge/mobile deployment |
