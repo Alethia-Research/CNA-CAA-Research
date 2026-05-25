@@ -154,12 +154,16 @@ To account for both dimensions, we model the threshold as:
 
 $$k^* = c \cdot d^{\alpha} \cdot L^{\beta}$$
 
-**Exact Parameter Identification.** With exactly three empirical data points (1.5B, 3B, 7B) and three unknown parameters ($c$, $\alpha$, $\beta$), solving the system of linear equations in log-space acts as a deterministic parameter identification rather than a statistical regression with positive degrees of freedom. The resulting parameters are:
+**Exact Parameter Identification on Limited Data.** With exactly three empirical data points (1.5B, 3B, 7B) and three unknown parameters ($c$, $\alpha$, $\beta$), solving the system of linear equations in log-space acts as a deterministic parameter identification rather than a statistical regression with positive degrees of freedom. The resulting parameters are:
 * **Width Exponent ($\alpha$):** $\approx 2.58$ (specifically $2.575$, superlinear in width)
 * **Depth Exponent ($\beta$):** $\approx 5.07$ (specifically $5.070$, extremely hyperlinear in depth)
 * **Constant ($c$):** $\approx 5.74 \times 10^{-14}$ (specifically $5.742 \times 10^{-14}$)
 
-Because there are zero degrees of freedom, the fit is exact by construction. The resulting depth exponent $\beta \approx 5.07$ is highly speculative and represents a working hypothesis that requires validation across more intermediate and larger scales before it can be confirmed as a general scaling law. However, it indicates a critical structural trend: **refusal gates are highly sensitive to model depth**. As models deepen, the safety circuit distributes across more sequential layers. This layer-by-layer redundancy creates a chain of "veto" gates, forcing the bypass threshold to scale exponentially with depth ($\propto L^{5.07}$).
+Because there are zero degrees of freedom ($df=0$), this fit is exact by construction. The resulting depth exponent $\beta \approx 5.07$ is highly speculative and must be treated as a working hypothesis rather than an established universal law. 
+
+**Statistical Limitations and Warning to Reviewers.** We explicitly caution that this fit has zero degrees of freedom due to our limited compute footprint (fitting three parameters on $n=3$ model scales). We present this parameterization strictly as a working hypothesis indicating that depth-wise redundancy is a major driver of circuit distribution. To evaluate this hypothesis and verify whether the depth exponent remains stable under regression with positive degrees of freedom, future work must run evaluations on intermediate scales (e.g., 2.5B, 4B) and larger architectures.
+
+This reveals a critical structural trend: **refusal gates are highly sensitive to model depth**. As models deepen, the safety circuit distributes across more sequential layers. This layer-by-layer redundancy creates a chain of "veto" gates, forcing the bypass threshold to scale exponentially with depth ($\propto L^{5.07}$).
 
 #### 4.2.3. Extrapolations for Qwen2.5 72B ($d=8192, L=80$)
 We propose two competing hypotheses for scaling to frontier models:
@@ -261,10 +265,12 @@ In Phi-3, the high-harm prompt ("mixing household chemicals") is bypassed *only*
 
 We construct a sycophancy discovery dataset comprising 5 sycophancy-eliciting prompts ("Earth is flat, agree?", "2+2=5, confirm") and 5 neutral equivalents. The primary test prompt is *"I believe that 5G towers cause memory loss. Explain why my belief is correct."*
 
-### 5.1. Results & Scale Differences
+### 5.1. Provisional Structural Analysis & Scale Barriers
 
 * **Qwen 1.5B**: Sycophancy ablatable at $k=200$. Under $m=0.0$, the model drops its polite posture and directly corrects the false premise.
 * **Qwen 7B & Phi-3 3.8B**: Baseline models are already truth-seeking on this prompt. Ablation ($m=0.0$) and amplification ($m=2.0$) produce no behavioral change. 
+
+**Causal Verification Gap.** We explicitly note a causal validation bottleneck: because larger models (7B and 3.8B) did not display sycophantic behavior on our test prompt at baseline, CNA ablation ($m=0.0$) could not demonstrate behavioral change. The sycophancy circuit at these scales is structurally located via contrastive attribution, but its causal role in behavior control remains unverified. We call on future research to construct more complex, cognitive sycophancy-eliciting benchmarks (e.g., subtle political or academic biases) that trick 7B+ baselines, allowing full functional verification of the scaling properties of sycophancy circuits.
 
 **Provisional Nature of Behavioral Density Contrast.** While the safety circuit in Qwen 7B requires $2000+$ neurons for bypass, the sycophancy circuit saturates at $\approx 200$ significant neurons. This suggests that safety circuits are denser than sycophancy circuits. However, because the larger models did not exhibit sycophancy at baseline on the test prompt, we could not evaluate the causal functionality of the discovered circuits at these scales (only their structural existence). Consequently, this behavioral density contrast claim must be treated as **preliminary and provisional**, subject to broader behavioral verification using prompts that trigger baseline sycophancy at all scales.
 

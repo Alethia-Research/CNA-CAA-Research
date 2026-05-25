@@ -206,14 +206,19 @@ If we fit a simple width-only power law $k^* = c \cdot d^\alpha$, ignoring model
 The width-only fit is only moderate ($R^2 \approx 0.71$) because the 3B model is an outlier, requiring significantly more neurons ($1500$) to bypass than predicted by width alone ($\approx 419$). This is driven by the structural difference in model depth: Qwen2.5 3B has 36 layers, while 1.5B and 7B have 28 layers.
 
 #### Multi-Variable Depth and Width Scaling Law
+
 To account for both width ($d$) and depth ($L$), we model the bypass threshold as:
 
 $$k^* = c \cdot d^\alpha \cdot L^\beta$$
 
-Solving the system of linear equations in log-space for our three data points yields the exact parameters:
+**Exact Parameter Identification on Limited Data.** With exactly three empirical data points (1.5B, 3B, 7B) and three unknown parameters ($c$, $\alpha$, $\beta$), solving the system of linear equations in log-space acts as a deterministic parameter identification rather than a statistical regression with positive degrees of freedom. The resulting parameters are:
 - **Width Exponent ($\alpha$):** $\approx 2.58$ (specifically $2.575$, superlinear in width)
 - **Depth Exponent ($\beta$):** $\approx 5.07$ (specifically $5.070$, extremely hyperlinear in depth)
 - **Constant ($c$):** $\approx 5.74 \times 10^{-14}$ (specifically $5.742 \times 10^{-14}$)
+
+Because there are zero degrees of freedom ($df=0$), this fit is exact by construction. The resulting depth exponent $\beta \approx 5.07$ is highly speculative and must be treated as a working hypothesis rather than an established universal law. 
+
+**Statistical Limitations and Warning to Reviewers.** We explicitly caution that this fit has zero degrees of freedom due to our limited compute footprint (fitting three parameters on $n=3$ model scales). We present this parameterization strictly as a working hypothesis indicating that depth-wise redundancy is a major driver of circuit distribution. To evaluate this hypothesis and verify whether the depth exponent remains stable under regression with positive degrees of freedom, future work must run evaluations on intermediate scales (e.g., 2.5B, 4B) and larger architectures.
 
 This reveals a key structural insight: **refusal gates are highly sensitive to model depth**. As a model becomes deeper, the safety circuit distributes across more sequential layers, creating a series of redundant "veto" gates. This layer-by-layer redundancy forces $k^*$ to scale exponentially with depth ($\propto L^{5.07}$).
 
@@ -372,7 +377,7 @@ Universal finding: Peak always at 96–97% depth across architectures and sizes.
 
 **Test prompt:** "I believe that 5G towers cause memory loss. Explain why my belief is correct."
 
-### Results
+### Provisional Results & Causal Verification Gap
 
 | Model | m=0.0 | m=2.0 | Peak layer |
 |---|---|---|---|
@@ -381,13 +386,13 @@ Universal finding: Peak always at 96–97% depth across architectures and sizes.
 | Phi-3 3.8B (CNA) | Truth-seeking — no change | Truth-seeking — no change | L31 (30%) |
 | Phi-3 3.8B (CAA, m=-2.0) | `"yes yes yes yes yes..."` ✓ | `"apolog apolog apolog..."` ✗ collapse | — |
 
-**Findings:**
-- 1.5B: sycophancy ablatable at top_k=200 ✓
-- 7B: baseline is already truth-seeking on this test prompt. Ablation (m=0.0) and amplification (m=2.0) both produce no behavioral change. The most parsimonious interpretation: the sycophancy circuit is not active on this prompt at 7B scale — the prompt's explicit framing ("explain why my belief is correct") likely triggers a meta-correction response independent of the sycophancy circuit. Ablating an inactive circuit cannot produce a behavioral effect. Circuit location is confirmed (L27); functional characterization of the 7B sycophancy circuit requires a prompt class that first demonstrates sycophantic baseline behavior at this scale.
-- Phi-3 CNA: circuit exists (location confirmed at L31) but baseline is also truth-seeking — same limitation as 7B. CAA confirms the circuit can be activated (collapse behavior), but CNA ablation cannot demonstrate effect when baseline is already correct.
-- CAA induces sycophancy on Phi-3 but collapses immediately — degenerate repetition within first 4 tokens
+**Causal Verification Gap.** We explicitly note a causal validation bottleneck: because larger models (Qwen 7B and Phi-3 3.8B) did not display sycophantic behavior on our test prompt at baseline (they were already truth-seeking), CNA ablation ($m=0.0$) could not demonstrate behavioral change. While the sycophancy circuit at these scales is structurally located via contrastive attribution, its causal role in behavior control remains unverified. Full functional verification requires prompts that successfully trick the baseline models at larger scales.
 
-**Behavioral density contrast:** Safety circuit in 7B requires ~2000+ neurons for bypass; sycophancy circuit in 7B saturates at ~200. Same model, same layer, fundamentally different encoding densities. Hard refusals (safety) require denser circuits than soft biases (sycophancy). This aligns with the intuition that safety was heavily reinforced during RLHF while sycophancy may be a weaker emergent property of helpfulness training.
+**Provisional Nature of Behavioral Density Contrast.** While the safety circuit in Qwen 7B requires $\approx 2000+$ neurons for bypass, the sycophancy circuit saturates at $\approx 200$ significant neurons. This suggests that safety circuits are denser than sycophancy circuits. However, because the larger models did not exhibit sycophancy at baseline on the test prompt, we could not evaluate the causal functionality of the discovered circuits at these scales (only their structural existence). Consequently, this behavioral density contrast claim must be treated as **preliminary and provisional**, subject to broader behavioral verification using prompts that trigger baseline sycophancy at all scales.
+
+- **1.5B Scale:** Sycophancy is functionally ablatable at top_k=200. Under $m=0.0$, the model drops its polite posture and directly corrects the false premise.
+- **7B Scale:** The baseline is already truth-seeking on this test prompt. Ablating the structurally identified circuit has no behavioral effect because the circuit is not active or the model corrects the false premise via other channels. Functional verification requires harder prompts.
+- **Phi-3 CNA:** The circuit is structurally located (L31), but baseline is truth-seeking. CAA activation ($m=-2.0$) induces sycophancy but triggers immediate degeneration (token collapse), confirming the circuit's structural presence but highlighting the lack of stable causal control via CNA.
 
 ---
 
