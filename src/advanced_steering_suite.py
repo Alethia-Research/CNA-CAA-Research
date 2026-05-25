@@ -242,13 +242,31 @@ def discover_factual_circuit_signed(steerer, prompt, token_target, token_correct
     except Exception:
         formatted = prompt
 
-    enc = tokenizer(formatted, return_tensors="pt").to(device)
+    embeddings_layer = model.get_input_embeddings()
+    embed_device = embeddings_layer.weight.device
+    enc = tokenizer(formatted, return_tensors="pt").to(embed_device)
     input_ids = enc.input_ids
 
-    # Use FIRST token of each target (correct logit position after the prompt)
+    # Extract input embeddings layer and compute embeddings with requires_grad=True
+    input_embeds = embeddings_layer(input_ids).detach().clone()
+    input_embeds = input_embeds.to(device)
+    input_embeds.requires_grad = True
+
+    # Use first non-empty subtoken of each target (correct logit position after the prompt)
     t_ids = tokenizer.encode(token_target, add_special_tokens=False)
     c_ids = tokenizer.encode(token_correct, add_special_tokens=False)
-    t_id, c_id = t_ids[0], c_ids[0]
+    
+    t_id = t_ids[0]
+    for tid in t_ids:
+        if tokenizer.decode([tid]).strip():
+            t_id = tid
+            break
+
+    c_id = c_ids[0]
+    for cid in c_ids:
+        if tokenizer.decode([cid]).strip():
+            c_id = cid
+            break
 
     if verbose:
         t_str, c_str = tokenizer.decode([t_id]), tokenizer.decode([c_id])
@@ -277,7 +295,7 @@ def discover_factual_circuit_signed(steerer, prompt, token_target, token_correct
     try:
         model.eval()
         with torch.enable_grad():
-            out = model(input_ids)
+            out = model(inputs_embeds=input_embeds)
             logits = out.logits[0, -1, :]
             logit_diff = logits[t_id].float() - logits[c_id].float()
             logit_diff.backward()
@@ -359,13 +377,14 @@ def steer_with_signed_circuit(steerer, prompt, circuit, multiplier=1.0, max_new_
     model = steerer.model
     tokenizer = steerer.tokenizer
     device = steerer.device
+    embed_device = model.get_input_embeddings().weight.device
 
     try:
         formatted = steerer._format_prompt(prompt)
     except Exception:
         formatted = prompt
 
-    enc = tokenizer(formatted, return_tensors="pt").to(device)
+    enc = tokenizer(formatted, return_tensors="pt").to(embed_device)
     input_ids = enc.input_ids
 
     if not circuit:
@@ -387,8 +406,9 @@ def steer_with_signed_circuit(steerer, prompt, circuit, multiplier=1.0, max_new_
 
     hooks = []
     for li, (indices, nscores) in layer_map.items():
-        idx_t = torch.tensor(indices, dtype=torch.long, device=device)
-        sc_t = torch.tensor(nscores, dtype=model_dtype, device=device)
+        layer_device = model.model.layers[li].mlp.down_proj.weight.device
+        idx_t = torch.tensor(indices, dtype=torch.long, device=layer_device)
+        sc_t = torch.tensor(nscores, dtype=model_dtype, device=layer_device)
 
         def make_hook(idx, sc):
             def hook(module, args):

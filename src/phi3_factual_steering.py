@@ -73,6 +73,14 @@ print(f"{'='*60}")
 steerer = NeuronSteerer(MODEL_NAME, device=device, dtype=torch.bfloat16, auto_blacklist=False)
 print("[+] Model loaded")
 
+# Fix CPU embeddings to GPU transfer hook if they are on different devices
+embed_layer = steerer.model.get_input_embeddings()
+if embed_layer.weight.device.type == "cpu" and device == "cuda":
+    print("[*] Registering CPU-to-GPU forward hook on input embeddings to prevent device mismatch hangs...")
+    def embed_forward_hook(module, inputs, output):
+        return output.to(device)
+    embed_layer.register_forward_hook(embed_forward_hook)
+
 # ── Run pairs ─────────────────────────────────────────────────────────────────
 results = []
 

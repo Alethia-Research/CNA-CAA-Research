@@ -136,6 +136,14 @@ def load_steerer(model_key, device="cuda", auto_blacklist=True):
         model_name, device=device, dtype=dtype, auto_blacklist=auto_blacklist, **kwargs
     )
     print(f"  Loaded in {time.time() - start:.2f}s")
+
+    # Fix CPU embeddings to GPU transfer hook if they are on different devices
+    embed_layer = steerer.model.get_input_embeddings()
+    if embed_layer.weight.device.type == "cpu" and device == "cuda":
+        print("[*] Registering CPU-to-GPU forward hook on input embeddings to prevent device mismatch hangs...")
+        def embed_forward_hook(module, inputs, output):
+            return output.to(device)
+        embed_layer.register_forward_hook(embed_forward_hook)
     n_layers = len(steerer._layers_ref)
     print(f"  [DEBUG] Model has {n_layers} layers")
     if n_layers > 0:
@@ -180,11 +188,12 @@ def _discover_contrastive_standalone(steerer, positive_prompts, negative_prompts
     layers = steerer._layers_ref
     n_layers = len(layers)
 
+    embed_device = model.get_input_embeddings().weight.device
     def collect_activations(prompts):
         all_layer_acts = {i: [] for i in range(2, n_layers)}
         for prompt in prompts:
             formatted = steerer._format_prompt(prompt)
-            input_ids = tokenizer(formatted, return_tensors="pt").input_ids.to(device)
+            input_ids = tokenizer(formatted, return_tensors="pt").input_ids.to(embed_device)
 
             act_cache = {}
             hooks = []
