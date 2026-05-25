@@ -2,7 +2,7 @@
 **Last updated:** 2026-05-24  
 **Mission:** Publish high-quality, zero-fluff research on building smaller, smarter models under severe compute constraints.  
 **End goal:** One publishable research paper + one open-source model release.  
-**Compute:** Google Colab Free/Pro (T4/A100). All phases designed to run within this constraint.
+**Compute:** Google Colab Free/Pro (T4). All phases designed to run within this constraint.
 
 ---
 
