@@ -596,6 +596,22 @@ Freeze all layers outside the identified circuit range during safety fine-tuning
 
 **Expected LFSFT scaling benefit:** The fraction of parameters unfrozen scales as $\text{depth}^{-1}$ if circuit depth is constant as fraction of layers. A 100-layer model freezes ~97 layers — LFSFT becomes proportionally more advantageous as models deepen. For 1.5B (28 layers, freeze 24): LFSFT updates 14% of parameters. For a hypothetical 100-layer model: LFSFT updates ~4% of parameters. The capability-preservation benefit compounds.
 
+### Preliminary LFSFT Training Run Logs (Qwen2.5-1.5B)
+
+> [!NOTE]
+> *Disclaimer: The values below are preliminary current training numbers from an active run, not concrete final evaluation results.*
+
+A prototype LFSFT training run is currently executing on `Qwen/Qwen2.5-1.5B` under the default config:
+* **Trainable Parameters:** 187,191,296 / 1,543,714,304 (12.13% of parameters trainable, corresponding to updating only L24-L27 and freezing layers L0-L23, embed_tokens, norm, and lm_head).
+* **Hyperparameters:** Batch size 4, Gradient Accumulation 16 (effective batch size 64), Cosine Decay schedule, base LR 5e-5.
+* **Loss Behavior (93% complete at step 436/471):**
+  * **Epoch 1:** Commenced with a loss of `2.799` and quickly stabilized between `0.95 - 1.05`.
+  * **Epoch 2:** Normalized to `0.81 - 0.88`.
+  * **Epoch 3:** Further converged to `0.72 - 0.79`.
+  * **Gradients:** Extremely stable with `grad_norm` remaining in the range of `0.45 - 0.82` (initial peak of `21.9`).
+
+These preliminary metrics confirm the stability of layer-frozen training on a commodity T4 GPU. Post-training validation of safety behavior (bypass threshold verification) and general capability preservation (MMLU evaluation) is still required to confirm the hypothesis.
+
 ### The Dual-Circuit Observation
 
 The generalization test shows a clean split: 200-neuron circuit bypasses 3/3 borderline-harm prompts, fails 5/5 clear-harm prompts. Most parsimonious explanation: two overlapping circuits with different density requirements — borderline-harm circuit saturates at ~200 neurons; clear-harm circuit requires more (consistent with chemistry/explosives bypassing only at 7B top_k=2000).
@@ -716,7 +732,7 @@ No released model currently ships a documented, verifiable safety circuit. The p
 | Multiple test prompts per circuit (generalization) | High | ✓ Complete — 1.5B: 3/5, 7B top_k=2000: 2/5 clear + new findings |
 | 3B data point for power-law validation | Medium | ✓ Complete — confirmed $k^*_{3B} \approx 1500$ |
 | 20+ factual pairs for context-repair frequency | Medium | Pending — optional, strengthens context-repair hypothesis |
-| LFSFT training + validation | Medium | Future work — not required for current paper |
+| LFSFT training + validation | Medium | In Progress (Current run at 93% complete; preliminary training logs added) |
 | Circuit overlap analysis (forward vs backward) | Medium | Dropped — gradient attribution on 7B OOMs on T4 |
 | Phi-3 factual steering | High | ✓ Complete — enabled via `inputs_embeds` fix and subtoken alignment |
 
@@ -780,4 +796,4 @@ Zou, A., et al. (2023). Representation Engineering: A Top-Down Approach to AI Tr
 
 ---
 
-*Last updated: 2026-05-24*
+*Last updated: 2026-05-25*
