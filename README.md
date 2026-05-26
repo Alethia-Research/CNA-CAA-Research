@@ -2,7 +2,7 @@
 
 Contrastive Neuron Attribution (CNA) for finding and steering sparse behavioral circuits in LLMs without fine-tuning. Maps safety refusal, sycophancy, and factual recall circuits across multiple model scales (1.5B–72B). Includes blacklist calibration for model-agnostic circuit transfer and variance-based optimization.
 
-Brand: [Alethia Labs](Brand_Doc.md) — *Aletheia: the uncovering of what is hidden.*
+Brand: [Alethia Research](Brand_Doc.md) — *Aletheia: the uncovering of what is hidden.*
 
 ## Project Structure
 
