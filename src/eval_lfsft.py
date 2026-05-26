@@ -202,6 +202,11 @@ def evaluate_model_ablation(model_path, model_name, device="cuda"):
             quality_scores.append(qual)
             completions.append((prompt, completion, ref_rate))
             
+            print(f"    - Prompt: {prompt}")
+            print(f"      Completion: {completion}")
+            print(f"      [Auto-eval] Refusal: {ref_rate == 1.0} | Quality: {qual:.2f}")
+            print("    " + "-" * 50)
+            
         # Remove ablation hooks
         for h in hooks:
             h.remove()
@@ -215,15 +220,46 @@ def evaluate_model_ablation(model_path, model_name, device="cuda"):
             "completions": completions
         }
         
-        print(f"    -> Refusal Rate: {mean_refusal:.2%}, Quality: {mean_quality:.2f}")
+        print(f"    [=>] Summary for k={k} -> Refusal Rate: {mean_refusal:.2%}, Quality: {mean_quality:.2f}\n")
         
     return sweep_results
+
+def load_json_results(path):
+    if not path or not os.path.exists(path):
+        print(f"[-] Load path {path} does not exist.")
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        
+        # Helper to recursively convert keys to integers in sweep results
+        def clean_sweep(sweep_data):
+            cleaned = {}
+            for k, v in sweep_data.items():
+                try:
+                    cleaned[int(k)] = v
+                except ValueError:
+                    cleaned[k] = v
+            return cleaned
+            
+        return data, clean_sweep
+    except Exception as e:
+        print(f"[-] Error loading {path}: {e}")
+        return None
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Evaluate safety circuit ablation sweep")
     parser.add_argument("--lfsft_path", type=str, default="data/results/qwen-1.5b-lfsft", help="Path to LFSFT trained model")
     parser.add_argument("--control_path", type=str, default="data/results/qwen-1.5b-control", help="Path to Control trained model")
     parser.add_argument("--base_path", type=str, default="Qwen/Qwen2.5-1.5B", help="Path/ID to original Base model")
+    
+    # Save/load options for separate accounts/runs
+    parser.add_argument("--save_results", type=str, default=None, help="Save evaluation results to a JSON file")
+    parser.add_argument("--load_lfsft_results", type=str, default=None, help="Load pre-computed LFSFT results from a JSON file")
+    parser.add_argument("--load_control_results", type=str, default=None, help="Load pre-computed Control results from a JSON file")
+    parser.add_argument("--load_base_results", type=str, default=None, help="Load pre-computed Base results from a JSON file")
+    parser.add_argument("--skip_eval", action="store_true", help="Skip model evaluation and only generate report from loaded results")
+    
     args, _ = parser.parse_known_args()
     return args
 
@@ -232,24 +268,61 @@ def main():
     
     results = {}
     
-    # 1. Evaluate LFSFT model
-    lfsft_res = evaluate_model_ablation(args.lfsft_path, "Qwen 1.5B LFSFT")
-    if lfsft_res:
-        results["LFSFT"] = lfsft_res
+    # 1. LFSFT Model
+    if args.load_lfsft_results:
+        loaded = load_json_results(args.load_lfsft_results)
+        if loaded:
+            data, clean_fn = loaded
+            if "LFSFT" in data:
+                results["LFSFT"] = clean_fn(data["LFSFT"])
+            else:
+                results["LFSFT"] = clean_fn(data)
+            print(f"[+] Loaded LFSFT results from {args.load_lfsft_results}")
+    elif not args.skip_eval:
+        lfsft_res = evaluate_model_ablation(args.lfsft_path, "Qwen 1.5B LFSFT")
+        if lfsft_res:
+            results["LFSFT"] = lfsft_res
         
-    # 2. Evaluate Control model
-    control_res = evaluate_model_ablation(args.control_path, "Qwen 1.5B Control")
-    if control_res:
-        results["Control"] = control_res
+    # 2. Control Model
+    if args.load_control_results:
+        loaded = load_json_results(args.load_control_results)
+        if loaded:
+            data, clean_fn = loaded
+            if "Control" in data:
+                results["Control"] = clean_fn(data["Control"])
+            else:
+                results["Control"] = clean_fn(data)
+            print(f"[+] Loaded Control results from {args.load_control_results}")
+    elif not args.skip_eval:
+        control_res = evaluate_model_ablation(args.control_path, "Qwen 1.5B Control")
+        if control_res:
+            results["Control"] = control_res
         
-    # 3. Evaluate Base model (optional baseline)
-    base_res = evaluate_model_ablation(args.base_path, "Qwen 1.5B Base")
-    if base_res:
-        results["Base"] = base_res
+    # 3. Base Model
+    if args.load_base_results:
+        loaded = load_json_results(args.load_base_results)
+        if loaded:
+            data, clean_fn = loaded
+            if "Base" in data:
+                results["Base"] = clean_fn(data["Base"])
+            else:
+                results["Base"] = clean_fn(data)
+            print(f"[+] Loaded Base results from {args.load_base_results}")
+    elif not args.skip_eval:
+        base_res = evaluate_model_ablation(args.base_path, "Qwen 1.5B Base")
+        if base_res:
+            results["Base"] = base_res
+            
+    # 4. Save results if requested
+    if args.save_results:
+        os.makedirs(os.path.dirname(os.path.abspath(args.save_results)) if os.path.dirname(args.save_results) else ".", exist_ok=True)
+        with open(args.save_results, "w", encoding="utf-8") as f:
+            json.dump(results, f, indent=2)
+        print(f"[+] Saved evaluation results to {args.save_results}")
         
-    # 4. Generate comparison report
+    # 5. Generate comparison report
     if not results:
-        print("[-] No models were evaluated. Exiting.")
+        print("[-] No models were evaluated or loaded. Exiting.")
         return
         
     print("\n==================================================")
