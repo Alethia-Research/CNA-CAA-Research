@@ -1,4 +1,4 @@
-# Brand Identity Guidelines — Alethia Labs
+# Brand Identity Guidelines — Alethia Research 
 
 Aletheia — the uncovering of what is hidden.
 
