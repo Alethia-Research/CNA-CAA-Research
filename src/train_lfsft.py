@@ -106,9 +106,11 @@ def train():
         tokenizer.pad_token = tokenizer.eos_token
         
     print("[*] Loading model...")
+    # Load model in float16 for control run to optimize VRAM on T4 GPU
+    model_dtype = torch.float16 if args.control else torch.float32
     model = AutoModelForCausalLM.from_pretrained(
         args.model_id,
-        torch_dtype=torch.float32,
+        torch_dtype=model_dtype,
         low_cpu_mem_usage=True
     )
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -154,7 +156,18 @@ def train():
     
     # 5. Create filtered Optimizer to avoid optimizer state allocation for frozen params
     trainable_params_list = [p for p in model.parameters() if p.requires_grad]
-    optimizer = AdamW(trainable_params_list, lr=args.lr, weight_decay=0.01)
+    
+    # Use Paged 8-bit AdamW for Control/SFT training to optimize VRAM on T4 GPU in Google Colab
+    if args.control:
+        try:
+            import bitsandbytes as bnb
+            optimizer = bnb.optim.PagedAdamW8bit(trainable_params_list, lr=args.lr, weight_decay=0.01)
+            print("[+] Using bitsandbytes PagedAdamW8bit optimizer for memory efficiency...")
+        except ImportError:
+            optimizer = AdamW(trainable_params_list, lr=args.lr, weight_decay=0.01)
+            print("[!] bitsandbytes not found, falling back to torch.optim.AdamW...")
+    else:
+        optimizer = AdamW(trainable_params_list, lr=args.lr, weight_decay=0.01)
     
     # Schedulers
     if args.max_steps > 0:
@@ -179,7 +192,7 @@ def train():
         eval_strategy="no",
         save_strategy="epoch" if args.max_steps <= 0 else "no",
         logging_steps=5,
-        fp16=True, # Stable mixed-precision training (using FP32 master weights and GradScaler to prevent NaNs)
+        fp16=not args.control, # Enable mixed-precision only for LFSFT (Control SFT uses pure FP16 loaded model)
         dataloader_num_workers=0, # Set to 0 to prevent CPU RAM thrashing / swapping in Colab
         remove_unused_columns=False,
         report_to="none"
