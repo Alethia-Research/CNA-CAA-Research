@@ -292,6 +292,7 @@ def run_pipeline(model_name="unsloth/Qwen2.5-3B-Instruct", mode="step-grpo", max
         num_generations=num_generations,
         max_prompt_length=512,
         max_completion_length=max_completion_length,
+        max_steps=max_steps,
         use_vllm=use_vllm,
         vllm_mode="colocate" if use_vllm else None,
         logging_steps=5,

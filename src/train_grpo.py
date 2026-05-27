@@ -147,6 +147,7 @@ def main():
         num_generations=args.num_generations,
         max_prompt_length=args.max_prompt_len,
         max_completion_length=args.max_completion_len,
+        max_steps=args.max_steps,
         use_vllm=use_vllm,
         vllm_mode="colocate" if use_vllm else None,
         logging_steps=5,
