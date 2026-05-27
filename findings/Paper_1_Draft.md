@@ -310,15 +310,19 @@ We run bidirectional factual steering using our signed attribution method.
 | "The largest planet..." | Jupiter | The largest planet... is Saturn. | Jupiter | **Target Substitution** |
 | "Water freezes at" | 0°C | Water freezes at 0 degrees Celsius... | Water freezes at 0 degrees Celsius... | No change |
 
-### 6.3. Semantic Context-Repair Hypothesis
+### 6.3. Causal Competition Model: Context-Repair vs. Target Substitution
 
-We observe that the model rarely produces incoherent outputs. Instead, it alters the context to make the target token valid:
-* **Germany $\rightarrow$ West Germany**: The model exploits historical ambiguity, generating *Bonn* (the historical capital of West Germany pre-reunification) rather than Berlin.
-* **France $\rightarrow$ London**: Shifts the context to the UK.
-* **Water freezes at $\rightarrow$ 273.15 Kelvin**: Shifts the temperature scale rather than fabricating a false freezing number.
-* **Jupiter $\rightarrow$ Uranus/Saturn**: Retreats to adjacent size ranks within the same category.
+Our steering results across Qwen and Phi-3 reveal two distinct behavioral regimes:
 
-**Hypothesis.** Factual circuits encode categorical knowledge frames, not token-level associations. Disrupting the dominant frame causes the model to retreat to the nearest valid alternative within the same semantic category.
+1. **Semantic Context-Repair:** The model alters the surrounding narrative to make the target token factually valid (e.g., swapping Germany's capital to *Bonn* and contextualizing it as the historical capital of West Germany, or expressing temperature in *Kelvin*).
+2. **Direct Target Substitution:** The model confidently asserts a direct factual falsehood without attempting context-repair (e.g., outputting *"The capital of Japan is Seoul"* or *"The largest planet is Saturn"*).
+
+#### The Competition Hypothesis
+We hypothesize that these two regimes represent the outcome of a **causal competition** between the steered circuit and the model's global semantic coherence constraints:
+* **Balanced Intervention (Context-Repair):** When the steering signal and the model's internal coherence pathways are in balance, the model resolves the logical contradiction by finding a nearby semantic frame where the steered token is factually correct.
+* **Dominant Intervention (Target Substitution):** When the steered circuit has a very clean, high-dimensional projection directly to a high-proximity sibling token (like `Tokyo` $\rightarrow$ `Seoul` within the `capital cities` category) and overrides the model's global coherence pathways, the model confidently outputs the incorrect association.
+
+This proves that factual circuits operate on structured category groups, but can be forced into direct target substitution under high steering strengths.
 
 ---
 

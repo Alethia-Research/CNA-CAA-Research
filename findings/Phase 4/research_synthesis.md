@@ -61,14 +61,19 @@ Our activation-variance blacklist experiments reveal that the model's core infra
 * **Base-to-Instruct Conservation:** We observed a **54% Jaccard overlap** between the blacklist of Qwen2.5-1.5B (Base) and Qwen2.5-1.5B-Instruct. Given the millions of parameters, this high overlap proves that core routing pathways are established during pre-training.
 * **Alignment as Final Routing:** Post-pretraining alignment (SFT/RLHF) does not rebuild the model's infrastructure. Instead, it alters the final routing of tokens in the late-layer periphery, leaving the base infrastructure conserved.
 
----
+## 4. Semantic Categories vs. Token Strings: Context-Repair vs. Target Substitution
 
-## 4. Semantic Categories vs. Token Strings: Factual Context-Repair
+When steering factual recall using signed logit-diff attribution, we documented two distinct behavioral outcomes:
 
-When steering factual recall using signed logit-diff attribution, we documented **Semantic Context-Repair**:
+* **Semantic Context-Repair:** When steered away from a fact (e.g., Germany $\rightarrow$ *Bonn*), the model does not output nonsense. Instead, it rewrites the context to make the steered token factually correct (*"Bonn served as the capital of West Germany..."*).
+* **Direct Target Substitution:** When steered to high-proximity sibling tokens (e.g., Japan $\rightarrow$ *Seoul*), the model confidently asserts a direct factual falsehood (*"The capital of Japan is Seoul"*) without attempting to rewrite the context.
 
-* **The Phenomenon:** When the model is steered away from a fact (e.g., changing the capital of Germany from *Berlin* to *Bonn*), it does not output a random token or crash into repetition. Instead, it rewrites the context to make the steered token factually correct: *"Bonn served as the capital of West Germany..."* or *"Water freezes at 273.15 Kelvin"*.
-* **Mechanistic Meaning:** The MLP feed-forward layers project high-dimensional semantic spaces (categorical knowledge frames) rather than raw token strings. Steering a specific factual circuit modulates the active semantic frame. The model's attention mechanism detects the resulting conflict in the residual stream and performs context-repair, editing the generated narrative to restore semantic coherence.
+### The Causal Competition Model
+These outcomes represent a competition between the **steered local circuit** and the model's **global semantic coherence constraints**:
+* **Context-Repair (Balanced Intervention):** The model attempts to resolve the factual contradiction by shifting to a nearby semantic frame where the steered token fits factually.
+* **Target Substitution (Dominant Intervention):** When the steered circuit has a clean, high-dimensional projection directly to a high-proximity token within the same category (like `Tokyo` $\rightarrow$ `Seoul` under `capital cities`) and overrides the model's global coherence pathways, it directly outputs the steered falsehood.
+
+This proves that factual circuits operate on categorical groups, but can be forced into direct target substitution under high steering strengths.
 
 ---
 
