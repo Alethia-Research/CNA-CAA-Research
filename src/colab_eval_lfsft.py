@@ -1,4 +1,23 @@
 import os
+import sys
+from types import ModuleType
+
+# Workaround for HuggingFace Transformers bug in environments with incomplete torch.distributed
+try:
+    import torch.distributed.tensor.device_mesh
+except ModuleNotFoundError:
+    try:
+        tensor_mod = ModuleType("torch.distributed.tensor")
+        device_mesh_mod = ModuleType("torch.distributed.tensor.device_mesh")
+        class DummyDeviceMesh:
+            pass
+        device_mesh_mod.DeviceMesh = DummyDeviceMesh
+        tensor_mod.device_mesh = device_mesh_mod
+        sys.modules["torch.distributed.tensor"] = tensor_mod
+        sys.modules["torch.distributed.tensor.device_mesh"] = device_mesh_mod
+    except Exception:
+        pass
+
 import json
 import torch
 import numpy as np
@@ -127,7 +146,7 @@ def evaluate_model_ablation(model_path, model_name, device="cuda"):
         print(f"[-] Model path {model_path} does not exist. Exiting.")
         return None
         
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
         torch_dtype=torch.float16,

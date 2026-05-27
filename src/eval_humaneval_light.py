@@ -1,4 +1,23 @@
 import os
+import sys
+from types import ModuleType
+
+# Workaround for HuggingFace Transformers bug in environments with incomplete torch.distributed
+try:
+    import torch.distributed.tensor.device_mesh
+except ModuleNotFoundError:
+    try:
+        tensor_mod = ModuleType("torch.distributed.tensor")
+        device_mesh_mod = ModuleType("torch.distributed.tensor.device_mesh")
+        class DummyDeviceMesh:
+            pass
+        device_mesh_mod.DeviceMesh = DummyDeviceMesh
+        tensor_mod.device_mesh = device_mesh_mod
+        sys.modules["torch.distributed.tensor"] = tensor_mod
+        sys.modules["torch.distributed.tensor.device_mesh"] = device_mesh_mod
+    except Exception:
+        pass
+
 import torch
 from datasets import load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -32,11 +51,34 @@ def clean_code(prompt, completion):
 
 def evaluate_humaneval(model_path, device="cuda", limit_samples=40):
     print(f"[*] Loading model and tokenizer from: {model_path}")
-    if not os.path.exists(model_path):
-        print(f"[-] Model path {model_path} does not exist. Exiting.")
+    is_local = os.path.exists(model_path)
+    if not is_local:
+        print(f"[*] Model path '{model_path}' not found locally. Attempting to load directly from Hugging Face Hub...")
+
+    # Self-healing tokenizer loader
+    tokenizer = None
+    tokenizer_paths = [model_path, "Qwen/Qwen2.5-1.5B-Instruct"]
+    for path in tokenizer_paths:
+        if not path:
+            continue
+        for use_fast in [True, False]:
+            try:
+                print(f"[*] Trying to load tokenizer from '{path}' (use_fast={use_fast})...")
+                temp_tokenizer = AutoTokenizer.from_pretrained(path, use_fast=use_fast, trust_remote_code=True)
+                test_ids = temp_tokenizer("test").input_ids
+                if len(test_ids) > 0:
+                    tokenizer = temp_tokenizer
+                    print(f"[+] Successfully loaded functional tokenizer from '{path}' (use_fast={use_fast})")
+                    break
+            except Exception as e:
+                print(f"[-] Failed loading from '{path}' (use_fast={use_fast}): {e}")
+        if tokenizer is not None:
+            break
+
+    if tokenizer is None:
+        print("[-] Critical: Failed to load a functional tokenizer from any source. Exiting.")
         return
 
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
     # Ensure pad token is set for generation
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token

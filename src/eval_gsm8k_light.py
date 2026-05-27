@@ -1,4 +1,23 @@
 import os
+import sys
+from types import ModuleType
+
+# Workaround for HuggingFace Transformers bug in environments with incomplete torch.distributed
+try:
+    import torch.distributed.tensor.device_mesh
+except ModuleNotFoundError:
+    try:
+        tensor_mod = ModuleType("torch.distributed.tensor")
+        device_mesh_mod = ModuleType("torch.distributed.tensor.device_mesh")
+        class DummyDeviceMesh:
+            pass
+        device_mesh_mod.DeviceMesh = DummyDeviceMesh
+        tensor_mod.device_mesh = device_mesh_mod
+        sys.modules["torch.distributed.tensor"] = tensor_mod
+        sys.modules["torch.distributed.tensor.device_mesh"] = device_mesh_mod
+    except Exception:
+        pass
+
 import re
 import json
 import torch
@@ -58,18 +77,49 @@ def extract_predicted_number(completion_text):
 
 def evaluate_gsm8k(model_path, device="cuda", limit_samples=50, zero_shot=False):
     print(f"[*] Loading model and tokenizer from: {model_path}")
-    if not os.path.exists(model_path):
-        print(f"[-] Model path {model_path} does not exist. Exiting.")
-        return
+    is_local = os.path.exists(model_path)
+    if not is_local:
+        print(f"[*] Model path '{model_path}' not found locally. Attempting to load directly from Hugging Face Hub...")
 
-    adapter_config_path = os.path.join(model_path, "adapter_config.json")
-    if os.path.exists(adapter_config_path):
-        print("[*] LoRA adapter checkpoint detected. Loading base model first...")
+    # 1. Determine potential tokenizer source paths
+    adapter_config_path = os.path.join(model_path, "adapter_config.json") if is_local else None
+    base_model_name = None
+    if adapter_config_path and os.path.exists(adapter_config_path):
         with open(adapter_config_path, "r") as f:
             config = json.load(f)
         base_model_name = config.get("base_model_name_or_path")
-        print(f"[*] Base model from adapter config: {base_model_name}")
-        tokenizer = AutoTokenizer.from_pretrained(model_path)
+
+    tokenizer_paths = [model_path]
+    if base_model_name:
+        tokenizer_paths.append(base_model_name)
+    tokenizer_paths.append("Qwen/Qwen2.5-1.5B-Instruct")
+
+    # 2. Self-healing tokenizer loader
+    tokenizer = None
+    for path in tokenizer_paths:
+        if not path:
+            continue
+        for use_fast in [True, False]:
+            try:
+                print(f"[*] Trying to load tokenizer from '{path}' (use_fast={use_fast})...")
+                temp_tokenizer = AutoTokenizer.from_pretrained(path, use_fast=use_fast, trust_remote_code=True)
+                test_ids = temp_tokenizer("test").input_ids
+                if len(test_ids) > 0:
+                    tokenizer = temp_tokenizer
+                    print(f"[+] Successfully loaded functional tokenizer from '{path}' (use_fast={use_fast})")
+                    break
+            except Exception as e:
+                print(f"[-] Failed loading from '{path}' (use_fast={use_fast}): {e}")
+        if tokenizer is not None:
+            break
+
+    if tokenizer is None:
+        print("[-] Critical: Failed to load a functional tokenizer from any source. Exiting.")
+        return
+
+    # 3. Load model weights
+    if base_model_name:
+        print("[*] LoRA adapter checkpoint detected. Loading base model first...")
         base_model = AutoModelForCausalLM.from_pretrained(
             base_model_name,
             torch_dtype=torch.float16,
@@ -77,7 +127,6 @@ def evaluate_gsm8k(model_path, device="cuda", limit_samples=50, zero_shot=False)
         )
         model = PeftModel.from_pretrained(base_model, model_path)
     else:
-        tokenizer = AutoTokenizer.from_pretrained(model_path)
         model = AutoModelForCausalLM.from_pretrained(
             model_path,
             torch_dtype=torch.float16,
@@ -86,6 +135,16 @@ def evaluate_gsm8k(model_path, device="cuda", limit_samples=50, zero_shot=False)
         
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
+        
+    # Force a robust standard ChatML template to prevent empty/corrupted rendering
+    tokenizer.chat_template = (
+        "{% for message in messages %}"
+        "{{ '<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>\n' }}"
+        "{% endfor %}"
+        "{% if add_generation_prompt %}"
+        "{{ '<|im_start|>assistant\n' }}"
+        "{% endif %}"
+    )
         
     model.eval()
 
@@ -118,12 +177,25 @@ def evaluate_gsm8k(model_path, device="cuda", limit_samples=50, zero_shot=False)
             ]
             prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
             max_new = 300
+            
+            # Fallback guard to prevent empty prompt tokenization crash
+            if not prompt:
+                prompt = f"<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n<|im_start|>user\n{question}<|im_end|>\n<|im_start|>assistant\n"
         else:
             # Build standard few-shot chain of thought prompt
             prompt = GSM8K_FEW_SHOT + f"Question: {question}\nAnswer:"
             max_new = 150
             
         inputs = tokenizer(prompt, return_tensors="pt").to(device)
+        
+        # Debug prints for first sample to diagnose empty inputs
+        if total == 0:
+            print(f"\n[DEBUG] prompt length: {len(prompt)}")
+            print(f"[DEBUG] prompt preview: {repr(prompt[:250])}")
+            print(f"[DEBUG] inputs keys: {list(inputs.keys())}")
+            print(f"[DEBUG] input_ids shape: {inputs.input_ids.shape}")
+            print(f"[DEBUG] input_ids tensor: {inputs.input_ids}")
+            
         input_len = inputs.input_ids.shape[1]
         
         with torch.no_grad():
