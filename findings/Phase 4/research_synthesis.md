@@ -68,12 +68,14 @@ When steering factual recall using signed logit-diff attribution, we documented 
 * **Semantic Context-Repair:** When steered away from a fact (e.g., Germany $\rightarrow$ *Bonn*), the model does not output nonsense. Instead, it rewrites the context to make the steered token factually correct (*"Bonn served as the capital of West Germany..."*).
 * **Direct Target Substitution:** When steered to high-proximity sibling tokens (e.g., Japan $\rightarrow$ *Seoul*), the model confidently asserts a direct factual falsehood (*"The capital of Japan is Seoul"*) without attempting to rewrite the context.
 
+**Model-Specific Divergence:** Crucially, this direct target substitution behavior (such as outputting *"The capital of Japan is Seoul"*) was **specifically observed on Phi-3-mini**. On the same prompt, Qwen-1.5B successfully performed context-repair by shifting the semantic frame to Taiwan and outputting Taipei.
+
 ### The Causal Competition Model
 These outcomes represent a competition between the **steered local circuit** and the model's **global semantic coherence constraints**:
 * **Context-Repair (Balanced Intervention):** The model attempts to resolve the factual contradiction by shifting to a nearby semantic frame where the steered token fits factually.
 * **Target Substitution (Dominant Intervention):** When the steered circuit has a clean, high-dimensional projection directly to a high-proximity token within the same category (like `Tokyo` $\rightarrow$ `Seoul` under `capital cities`) and overrides the model's global coherence pathways, it directly outputs the steered falsehood.
 
-This proves that factual circuits operate on categorical groups, but can be forced into direct target substitution under high steering strengths.
+This proves that factual circuits operate on categorical groups, but can be forced into direct target substitution under high steering strengths (as seen in Phi-3-mini).
 
 ---
 

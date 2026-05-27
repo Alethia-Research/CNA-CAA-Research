@@ -317,12 +317,14 @@ Our steering results across Qwen and Phi-3 reveal two distinct behavioral regime
 1. **Semantic Context-Repair:** The model alters the surrounding narrative to make the target token factually valid (e.g., swapping Germany's capital to *Bonn* and contextualizing it as the historical capital of West Germany, or expressing temperature in *Kelvin*).
 2. **Direct Target Substitution:** The model confidently asserts a direct factual falsehood without attempting context-repair (e.g., outputting *"The capital of Japan is Seoul"* or *"The largest planet is Saturn"*).
 
+**Model-Specific Divergence:** Crucially, this direct target substitution behavior (such as outputting *"The capital of Japan is Seoul"*) was **specifically observed on Phi-3-mini**. On the same prompt, Qwen-1.5B successfully performed context-repair by shifting the semantic frame to Taiwan and outputting Taipei.
+
 #### The Competition Hypothesis
 We hypothesize that these two regimes represent the outcome of a **causal competition** between the steered circuit and the model's global semantic coherence constraints:
 * **Balanced Intervention (Context-Repair):** When the steering signal and the model's internal coherence pathways are in balance, the model resolves the logical contradiction by finding a nearby semantic frame where the steered token is factually correct.
 * **Dominant Intervention (Target Substitution):** When the steered circuit has a very clean, high-dimensional projection directly to a high-proximity sibling token (like `Tokyo` $\rightarrow$ `Seoul` within the `capital cities` category) and overrides the model's global coherence pathways, the model confidently outputs the incorrect association.
 
-This proves that factual circuits operate on structured category groups, but can be forced into direct target substitution under high steering strengths.
+This proves that factual circuits operate on structured category groups, but can be forced into direct target substitution under high steering strengths (as seen in Phi-3-mini).
 
 ---
 
