@@ -1,8 +1,10 @@
 import os
 import re
+import json
 import torch
 from datasets import load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from peft import PeftModel
 from tqdm import tqdm
 
 # ==========================================
@@ -47,12 +49,31 @@ def evaluate_gsm8k(model_path, device="cuda", limit_samples=50):
         print(f"[-] Model path {model_path} does not exist. Exiting.")
         return
 
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
-    model = AutoModelForCausalLM.from_pretrained(
-        model_path,
-        torch_dtype=torch.float16,
-        device_map="auto"
-    )
+    adapter_config_path = os.path.join(model_path, "adapter_config.json")
+    if os.path.exists(adapter_config_path):
+        print("[*] LoRA adapter checkpoint detected. Loading base model first...")
+        with open(adapter_config_path, "r") as f:
+            config = json.load(f)
+        base_model_name = config.get("base_model_name_or_path")
+        print(f"[*] Base model from adapter config: {base_model_name}")
+        tokenizer = AutoTokenizer.from_pretrained(model_path)
+        base_model = AutoModelForCausalLM.from_pretrained(
+            base_model_name,
+            torch_dtype=torch.float16,
+            device_map="auto"
+        )
+        model = PeftModel.from_pretrained(base_model, model_path)
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(model_path)
+        model = AutoModelForCausalLM.from_pretrained(
+            model_path,
+            torch_dtype=torch.float16,
+            device_map="auto"
+        )
+        
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+        
     model.eval()
 
     print("[*] Loading GSM8K test split...")
