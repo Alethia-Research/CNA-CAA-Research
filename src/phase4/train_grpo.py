@@ -6,7 +6,7 @@ from datasets import load_dataset
 from transformers import TrainerCallback
 from trl import GRPOConfig, GRPOTrainer
 
-# Import our custom reward functions
+# Import our custom reward functions from the local directory
 from rewards import (
     format_reward_fn,
     math_correctness_reward_fn,

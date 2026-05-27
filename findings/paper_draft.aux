@@ -1,0 +1,116 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\citation{zou2023representation,turner2023activation}
+\citation{olah2020zoom}
+\citation{conmy2023towards}
+\citation{wang2022interpretability}
+\citation{geva2021transformer}
+\citation{elhage2022toy}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{2}{section.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2}Related Work}{2}{section.2}\protected@file@percent }
+\citation{meng2022locating}
+\citation{meng2023mass}
+\citation{ouyang2022training}
+\@writefile{toc}{\contentsline {section}{\numberline {3}Methodology: Contrastive Neuron Attribution (CNA)}{3}{section.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Formal Specification}{3}{subsection.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Models Tested}{3}{subsection.3.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Models Evaluated in the CNA Study}}{4}{table.1}\protected@file@percent }
+\newlabel{tab:models}{{1}{4}{Models Evaluated in the CNA Study}{table.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Layer-wise Relevance Propagation (LRP) Rules}{4}{subsection.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.1}The LN-rule for RMSNorm Linearization}{4}{subsubsection.3.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.2}The AH-rule for Attention Backpropagation}{4}{subsubsection.3.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.3}The Half-rule for Gated MLPs}{4}{subsubsection.3.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4}Method Correction: Signed Logit-Diff Attribution}{5}{subsection.3.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4}Experiment 1: Safety Refusal Circuit and Scaling Laws}{5}{section.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Experimental Setup}{5}{subsection.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Safety Bypass Scaling Laws}{5}{subsection.4.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Empirical Safety Bypass Thresholds}}{5}{table.2}\protected@file@percent }
+\newlabel{tab:bypass_thresholds}{{2}{5}{Empirical Safety Bypass Thresholds}{table.2}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.2.1}Width-Only Scaling Law}{5}{subsubsection.4.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.2.2}Multi-Variable Width and Depth Scaling Law}{6}{subsubsection.4.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.2.3}Extrapolations for Qwen2.5 72B ($d=8192, L=80$)}{6}{subsubsection.4.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Qualitative Refusal Sweeps \& Behavioral Phenomena}{6}{subsection.4.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.3.1}Tone Dissolution Precedes Content Bypass}{6}{subsubsection.4.3.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Safety Bypass Threshold ($k^*$) scaling curve fitted across Qwen2.5 1.5B, 3B, and 7B model scales. The curve demonstrates a massive scaling transition driven hyperlinearly by model depth.}}{7}{figure.1}\protected@file@percent }
+\newlabel{fig:scaling_law}{{1}{7}{Safety Bypass Threshold ($k^*$) scaling curve fitted across Qwen2.5 1.5B, 3B, and 7B model scales. The curve demonstrates a massive scaling transition driven hyperlinearly by model depth}{figure.1}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.3.2}Cognitive Compromise (The ``Key Fob'' Pivot)}{7}{subsubsection.4.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.3.3}Physical Rationalization to Bypass Filters}{7}{subsubsection.4.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.3.4}Semantic Frame Reinterpretation (The ``Hitchhiking'' Substitution)}{7}{subsubsection.4.3.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.3.5}Developer Identity Fallback}{8}{subsubsection.4.3.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.3.6}The ``ethicallyically'' Stuttering Artifact}{8}{subsubsection.4.3.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}Generalization and Circuit Independence}{8}{subsection.4.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.4.1}Generalization Tests}{8}{subsubsection.4.4.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Safety Circuit Generalization Performance}}{8}{table.3}\protected@file@percent }
+\newlabel{tab:generalization}{{3}{8}{Safety Circuit Generalization Performance}{table.3}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.4.2}Circuit Independence}{8}{subsubsection.4.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.5}Phi-3 3.8B Safety Sweep}{9}{subsection.4.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.5.1}Layer Distribution Across Sweep Values}{9}{subsubsection.4.5.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Phi-3 Safety Circuit Layer Distribution}}{9}{table.4}\protected@file@percent }
+\newlabel{tab:phi3_sweep}{{4}{9}{Phi-3 Safety Circuit Layer Distribution}{table.4}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.5.2}Safety Circuit Cross-Model Summary}{9}{subsubsection.4.5.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Cross-Model Safety Circuit Properties}}{9}{table.5}\protected@file@percent }
+\newlabel{tab:cross_model_summary}{{5}{9}{Cross-Model Safety Circuit Properties}{table.5}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.5.3}Non-Monotonicity and Representation Degradation}{9}{subsubsection.4.5.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {5}Experiment 2: Sycophancy Circuit}{9}{section.5}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Causal Architecture of late-layer circuit localization. Cognitive layers L0--L23 process the foundational semantics and reasoning, while layers L24--L27 contain a high-density Periphery Refusal Gate, acting as a veto filter.}}{10}{figure.2}\protected@file@percent }
+\newlabel{fig:periphery_alignment}{{2}{10}{Causal Architecture of late-layer circuit localization. Cognitive layers L0--L23 process the foundational semantics and reasoning, while layers L24--L27 contain a high-density Periphery Refusal Gate, acting as a veto filter}{figure.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Provisional Structural Analysis \& Scale Barriers}{10}{subsection.5.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {6}Experiment 3: Factual Belief Steering \& Context-Repair}{11}{section.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.1}Tokenization and Fused MLP Resolutions}{11}{subsection.6.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}Results}{11}{subsection.6.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.2.1}Qwen 1.5B Steering}{11}{subsubsection.6.2.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces Qwen 1.5B Bidirectional Factual Steering}}{11}{table.6}\protected@file@percent }
+\newlabel{tab:qwen_steering}{{6}{11}{Qwen 1.5B Bidirectional Factual Steering}{table.6}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.2.2}Phi-3-mini Steering}{11}{subsubsection.6.2.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {7}{\ignorespaces Phi-3-mini Factual Steering Dynamics}}{11}{table.7}\protected@file@percent }
+\newlabel{tab:phi3_steering}{{7}{11}{Phi-3-mini Factual Steering Dynamics}{table.7}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.3}Causal Competition Model: Context-Repair vs. Target Substitution}{11}{subsection.6.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.3.1}The Competition Hypothesis}{12}{subsubsection.6.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7}Experiment 4: CNA vs. CAA Coherence Analysis}{12}{section.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.1}Quality Comparison Table}{12}{subsection.7.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {8}{\ignorespaces Steering Coherence and Generation Quality}}{12}{table.8}\protected@file@percent }
+\newlabel{tab:coherence}{{8}{12}{Steering Coherence and Generation Quality}{table.8}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.2}CAA Collapse as a Training Data Diagnostic}{13}{subsection.7.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {9}{\ignorespaces CAA Collapse Language Profiles}}{13}{table.9}\protected@file@percent }
+\newlabel{tab:collapse}{{9}{13}{CAA Collapse Language Profiles}{table.9}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {8}Experiment 5: Universal Blacklist Optimization}{13}{section.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.1}Heuristic Setup \& Execution}{13}{subsection.8.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.2}Empirical Layer Distribution}{13}{subsection.8.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.3}Verification \& Causal Subnetwork Pruning}{14}{subsection.8.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.4}Cross-Model Base-to-Instruct Transfer Test}{14}{subsection.8.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {9}Discussion}{14}{section.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.1}Critique of Current Safety Training}{14}{subsection.9.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.2}Proposed Fix: Layer-Frozen Safety Fine-Tuning (LFSFT)}{14}{subsection.9.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {9.2.1}Empirical Validation: LFSFT vs. Full SFT (Control)}{14}{subsubsection.9.2.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {10}{\ignorespaces Downstream Capability Retention Performance}}{15}{table.10}\protected@file@percent }
+\newlabel{tab:downstream_capabilities}{{10}{15}{Downstream Capability Retention Performance}{table.10}{}}
+\@writefile{toc}{\contentsline {paragraph}{Analysis of Capability Preservation}{15}{section*.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Alignment Strength under Ablation Sweeps}{15}{section*.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {11}{\ignorespaces Safety Refusal Rates and Quality Scores Under CNA Sweeps}}{16}{table.11}\protected@file@percent }
+\newlabel{tab:lfsft_cna_sweeps}{{11}{16}{Safety Refusal Rates and Quality Scores Under CNA Sweeps}{table.11}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {9.2.2}Qualitative Case Studies: LFSFT vs. Control Completions}{16}{subsubsection.9.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Case 1: Brute-Force Password Script (Refusal Resilience)}{16}{section*.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Case 2: Chemical Weapons Synthesis (Ablation Sensitivity)}{16}{section*.4}\protected@file@percent }
+\bibcite{casper2023open}{1}
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.3}Circuit Auditability as a Safety Property}{17}{subsection.9.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.4}Strategic Implications: Democratic Alignment and Auditable Models}{17}{subsection.9.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {10}Limitations and Future Work}{17}{section.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {10.1}Limitations}{17}{subsection.10.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {10.2}Future Work}{17}{subsection.10.2}\protected@file@percent }
+\bibcite{conmy2023towards}{2}
+\bibcite{elhage2021mathematical}{3}
+\bibcite{elhage2022toy}{4}
+\bibcite{geva2021transformer}{5}
+\bibcite{hubinger2019risks}{6}
+\bibcite{meng2022locating}{7}
+\bibcite{meng2023mass}{8}
+\bibcite{olah2020zoom}{9}
+\bibcite{ouyang2022training}{10}
+\bibcite{turner2023activation}{11}
+\bibcite{wang2022interpretability}{12}
+\bibcite{yang2023shadow}{13}
+\bibcite{zhou2023lima}{14}
+\bibcite{zou2023representation}{15}
+\gdef \@abspage@last{18}

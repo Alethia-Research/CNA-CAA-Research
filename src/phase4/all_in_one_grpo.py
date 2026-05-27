@@ -1,6 +1,7 @@
 # =====================================================================
 # ALL-IN-ONE GRPO COGNITIVE MONOLOGUE TRAINING PIPELINE
 # Designed for Google Colab and Single-GPU Notebook environments
+# Phase 4: Frozen-Layer GRPO & Loophole Mitigation
 # =====================================================================
 
 import os
@@ -93,7 +94,6 @@ def format_reward_fn(prompts, completions, **kwargs) -> list[float]:
         if num_start == 1 and num_end == 1:
             start_idx = comp_text.find("<think>")
             end_idx = comp_text.find("</think>")
-            # Ensure correct ordering and some content after </think>
             if start_idx < end_idx and len(comp_text[end_idx + 8:].strip()) > 0:
                 rewards.append(1.0)
             else:
@@ -304,36 +304,10 @@ def get_combined_reward_fn(mode="step-grpo", stage_steps=50):
 # 4. TRAINING LAUNCH ORCHESTRATION
 # =====================================================================
 
-def run_pipeline(model_name="unsloth/Qwen2.5-3B-Instruct", mode="step-grpo", max_steps=150, stage_steps=50, limit_train=1000, no_vllm=False, num_generations=4, max_completion_length=384):
+def run_pipeline(model_name="unsloth/Qwen2.5-3B-Instruct", mode="step-grpo", max_steps=150, stage_steps=50, limit_train=1000, no_vllm=False, num_generations=4, max_completion_length=384, layers_to_transform_str=None):
     print(f"[*] Starting All-in-One Pipeline in mode: {mode.upper()}")
     
     # Format math questions (GSM8K)
-    SYSTEM_PROMPT = (
-        "A conversation between User and Assistant. The Assistant must think step-by-step "
-        "inside <think>...</think> tags to solve the mathematical problem, and then provide "
-        "the final numeric answer outside the tags."
-    )
-    
-    print("[*] Pre-processing GSM8K dataset...")
-    dataset = load_dataset("openai/gsm8k", "main")
-    train_subset = dataset["train"]
-    if limit_train is not None:
-         train_subset = train_subset.select(range(min(limit_train, len(train_subset))))
-         
-    os.makedirs("data", exist_ok=True)
-    dataset_path = "data/gsm8k_train_grpo.jsonl"
-    
-    with open(dataset_path, "w", encoding="utf-8") as f:
-        for item in train_subset:
-            prompt_messages = [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": item["question"]}
-            ]
-            target_answer = item["answer"].split("####")[-1].strip().replace(",", "")
-            json_line = {
-                "prompt": prompt_messages,
-                "target_answer": target_answer
-            }
     dataset_path = "./data/gsm8k_train_grpo.jsonl"
     if not os.path.exists(dataset_path):
         print("[*] Training dataset missing. Running prepare_grpo_data.py...")

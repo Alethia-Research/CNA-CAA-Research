@@ -29,18 +29,22 @@ def test_extract_xml_answer():
     assert extract_xml_answer("There are no digits here") == ""
 
 def test_format_reward_fn():
-    prompts = [""] * 4
+    prompts = [""] * 6
     completions = [
-        "<think>Let's calculate</think> The answer is 4", # Perfect (1.0)
-        "<think>Incomplete tags",                          # Partial (0.2)
-        "No tags whatsoever 4",                            # None (0.0)
-        "<think>Empty</think> "                            # No content after </think> (0.5)
+        "<think>Let's calculate</think> The answer is 4",       # Perfect (1.0)
+        "<think>Incomplete tags",                                # Unclosed (0.2)
+        "No tags whatsoever 4",                                  # None (0.0)
+        "<think>Empty</think> ",                                 # No content after </think> (0.5)
+        "<think>A</think><think>B</think> The answer is 4",       # Multi-block format penalty (0.3)
+        "<think>A</think> <think>B</think> </think> The answer is 4" # Multi-block tag mismatch (0.3)
     ]
     rewards = format_reward_fn(prompts, completions)
     assert rewards[0] == 1.0
     assert rewards[1] == 0.2
     assert rewards[2] == 0.0
     assert rewards[3] == 0.5
+    assert rewards[4] == 0.3
+    assert rewards[5] == 0.3
 
 def test_math_correctness_reward_fn():
     prompts = [""] * 3
@@ -56,32 +60,43 @@ def test_math_correctness_reward_fn():
     assert rewards[2] == 0.0
 
 def test_p_grpo_format_reward_fn():
-    prompts = [""] * 3
+    prompts = [""] * 5
     completions = [
-        "<think>thinking</think> 12", # Correct answer + correct format (1.0)
-        "<think>thinking</think> 13", # Incorrect answer + correct format (0.0)
-        "No format 12"               # Correct answer + no format (0.2)
+        "<think>thinking</think> 12",                     # Correct answer + correct format (1.0)
+        "<think>thinking</think> 13",                     # Incorrect answer + correct format (0.0)
+        "No format 12",                                   # Correct answer + no format (0.2)
+        "<think>A</think><think>B</think> 12",            # Correct answer + multi-block formatting penalty (0.3)
+        "<think>unclosed 12"                              # Correct answer + unclosed block penalty (0.2)
     ]
-    targets = ["12", "12", "12"]
+    targets = ["12", "12", "12", "12", "12"]
     rewards = p_grpo_format_reward_fn(prompts, completions, targets)
     assert rewards[0] == 1.0
     assert rewards[1] == 0.0 # zeroed out because incorrect
     assert rewards[2] == 0.2
+    assert rewards[3] == 0.3
+    assert rewards[4] == 0.2
 
 def test_step_grpo_reward_fn():
-    prompts = [""] * 4
+    prompts = [""] * 6
     completions = [
-        "<think>solve it</think> 12",                                   # Correct, 0 steps -> 0.99^0 = 1.0
-        "<think>wait, let's check. hmm, this is 12</think> 12",          # Correct, 2 steps ('wait', 'hmm') -> 0.99^2 = 0.9801
-        "<think>wait, let's check. hmm, this is 12</think> 13",          # Incorrect, any steps -> 0.0
-        "wait, let's check. hmm, this is 12"                             # Correct (ends with 12), 2 steps -> 0.99^2 = 0.9801
+        "<think>solve it</think> 12",                                            # Correct, 0 steps -> 1.0
+        "<think>wait, let's check. hmm, this is 12</think> 12",                   # Correct, 2 steps ('wait', 'hmm') -> 0.99^2 = 0.9801
+        "<think>wait, let's check. hmm, this is 12</think> 13",                   # Incorrect -> 0.0
+        "wait, let's check. hmm, this is 12",                                     # Correct, 2 steps (no tags) -> 0.9801
+        "<think>wait</think><think>hmm</think> 12",                               # Multi-block exploit test: captures both 'wait' and 'hmm' (2 steps) and applies block penalty: 0.99^2 - 0.1 = 0.8801
+        "<think>wait, actually this is 12"                                        # Unclosed block test: fallback extracts after <think>, 2 steps ('wait', 'actually') -> 0.99^2 = 0.9801
     ]
-    targets = ["12", "12", "12", "12"]
+    targets = ["12", "12", "12", "12", "12", "12"]
     rewards = step_grpo_reward_fn(prompts, completions, targets)
+    
     assert rewards[0] == 1.0
     assert abs(rewards[1] - 0.9801) < 1e-6
     assert rewards[2] == 0.0
     assert abs(rewards[3] - 0.9801) < 1e-6
+    # Multi-block penalty: 0.99^2 - 0.1 = 0.8801
+    assert abs(rewards[4] - 0.8801) < 1e-6
+    # Unclosed fallback: 0.99^2 = 0.9801
+    assert abs(rewards[5] - 0.9801) < 1e-6
 
 if __name__ == "__main__":
     print("[*] Running unit tests...")
@@ -91,4 +106,3 @@ if __name__ == "__main__":
     test_p_grpo_format_reward_fn()
     test_step_grpo_reward_fn()
     print("[+] All reward tests passed successfully!")
-
