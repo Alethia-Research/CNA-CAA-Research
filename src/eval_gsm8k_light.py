@@ -77,7 +77,7 @@ def evaluate_gsm8k(model_path, device="cuda", limit_samples=50):
     model.eval()
 
     print("[*] Loading GSM8K test split...")
-    dataset = load_dataset("gsm8k", "main", split="test", trust_remote_code=True)
+    dataset = load_dataset("openai/gsm8k", "main", split="test")
     
     eval_data = list(dataset)
     if limit_samples is not None:
