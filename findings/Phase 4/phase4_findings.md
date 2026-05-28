@@ -242,3 +242,11 @@ Regardless of interpretation, the finding has mechanistic significance: GRPO for
 | **CRITICAL** | **Frozen-Layer GRPO** (LoRA on L24–L27 only) — 150 steps same setup | ~55–65% OOD accuracy predicted; confirms Periphery Alignment theory | 90 min T4 |
 | **MEDIUM** | Retrain with block-count penalty in reward | Tests whether loophole fix improves coherence and accuracy | 90 min T4 |
 | **MEDIUM** | CNA probe on GRPO model vs base model (L0–L23 math circuits) | Quantifies central engine disruption from full-layer LoRA | 30 min T4 |
+
+### Future Work: Evaluator Best Practices & Token Budgets
+
+Based on our live evaluation of the `kridaydave/Qwen-1.5B-LFGRPO-OPTIM` model, we have established three key technical requirements for future reasoning-model evaluations:
+
+1. **Prevent Token Truncation in Evaluators:** Future evaluation suites for monologue/reasoning models must increase `max_new_tokens` to at least `512` (up from standard SFT's `300`). Because the model generates a dual-stage output (first planning inside `<think>`, then executing the calculation outside), its generation length is doubled. Tight limits result in truncation midway through calculations, artificially depressing accuracy.
+2. **Handle Special Token Stripping:** Since `<think>` and `</think>` are added as special tokens during training, standard decoding with `skip_special_tokens=True` silently strips the tags, leading to false reports of `0%` tag diversity. Evaluation loops must use `skip_special_tokens=False` combined with manual stripping of standard ChatML system markers like `<|im_end|>` and `<|endoftext|>`.
+3. **Use Prompt Pre-Filling:** To prevent small models (like 1.5B) from slipping back into direct-answer SFT formats under zero-shot prompt shifts, evaluation scripts should pre-fill the assistant's generation prompt with `<think>\n` to lock the model into the cognitive monologue schema.

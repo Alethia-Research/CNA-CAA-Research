@@ -158,6 +158,7 @@ def evaluate_gsm8k(model_path, device="cuda", limit_samples=50, zero_shot=False)
 
     correct = 0
     total = 0
+    outputs = []
 
     print("[*] Running math reasoning evaluation...")
     for item in tqdm(eval_data, desc="GSM8K Evaluation"):
@@ -222,6 +223,25 @@ def evaluate_gsm8k(model_path, device="cuda", limit_samples=50, zero_shot=False)
             print(f"Predicted Value: {pred_val} | Ground Truth: {gold_answer}")
             print(f"Match: {is_correct}")
             print("-" * 40)
+
+        # Save output for analysis
+        outputs.append({
+            "question": question,
+            "completion": generated_answer,
+            "predicted": pred_val,
+            "ground_truth": gold_answer,
+            "correct": is_correct
+        })
+
+    # Save all outputs to JSONL for tag diversity analysis
+    import json
+    output_path = model_path.rstrip("/").replace("/", "_") + "_eval_outputs.jsonl"
+    if os.path.exists("data"):
+        output_path = os.path.join("data", output_path)
+    with open(output_path, "w") as f:
+        for o in outputs:
+            f.write(json.dumps(o) + "\n")
+    print(f"[+] Saved {total} eval outputs to {output_path}")
 
     acc = correct / total if total > 0 else 0.0
     print("\n==================================================")
