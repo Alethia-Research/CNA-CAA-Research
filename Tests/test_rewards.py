@@ -83,7 +83,7 @@ def test_step_grpo_reward_fn():
         "<think>wait, let's check. hmm, this is 12</think> 12",                   # Correct, 2 steps ('wait', 'hmm') -> 0.99^2 = 0.9801
         "<think>wait, let's check. hmm, this is 12</think> 13",                   # Incorrect -> 0.0
         "wait, let's check. hmm, this is 12",                                     # Correct, 2 steps (no tags) -> 0.9801
-        "<think>wait</think><think>hmm</think> 12",                               # Multi-block exploit test: captures both 'wait' and 'hmm' (2 steps) and applies block penalty: 0.99^2 - 0.1 = 0.8801
+        "<think>wait</think><think>hmm</think> 12",                               # Multi-block exploit test: captures both 'wait' and 'hmm' (2 steps) and applies block penalty: 0.99^2 - 0.5 = 0.4801
         "<think>wait, actually this is 12"                                        # Unclosed block test: fallback extracts after <think>, 2 steps ('wait', 'actually') -> 0.99^2 = 0.9801
     ]
     targets = ["12", "12", "12", "12", "12", "12"]
@@ -93,8 +93,8 @@ def test_step_grpo_reward_fn():
     assert abs(rewards[1] - 0.9801) < 1e-6
     assert rewards[2] == 0.0
     assert abs(rewards[3] - 0.9801) < 1e-6
-    # Multi-block penalty: 0.99^2 - 0.1 = 0.8801
-    assert abs(rewards[4] - 0.8801) < 1e-6
+    # Multi-block penalty: 0.99^2 - 0.5 = 0.4801
+    assert abs(rewards[4] - 0.4801) < 1e-6
     # Unclosed fallback: 0.99^2 = 0.9801
     assert abs(rewards[5] - 0.9801) < 1e-6
 

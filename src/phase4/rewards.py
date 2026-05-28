@@ -1,5 +1,6 @@
 import re
 
+
 def get_completion_text(comp) -> str:
     """
     Safely extracts the generated text string from a completion.
@@ -17,6 +18,7 @@ def get_completion_text(comp) -> str:
         return comp
     return ""
 
+
 def extract_xml_answer(text: str) -> str:
     """
     Extracts the final answer from the model completion.
@@ -26,24 +28,27 @@ def extract_xml_answer(text: str) -> str:
     """
     if "</think>" in text:
         text = text.split("</think>")[-1]
-    
+
     # Remove commas from numbers to avoid matching errors (e.g., 1,000 -> 1000)
     text_clean = text.replace(",", "")
-    
+
     # 1. Look for \boxed{...}
     boxed_match = re.search(r"\\boxed\{([0-9.-]+)\}", text_clean)
     if boxed_match:
         return boxed_match.group(1)
-        
+
     # 2. Look for the last number in the text
     numbers = re.findall(r"-?\d+(?:\.\d+)?", text_clean)
     if numbers:
         return numbers[-1]
-        
+
     return ""
+
 
 def format_reward_fn(prompts, completions, **kwargs) -> list[float]:
     """
+
+
     Standard formatting reward. Checks if the model output follows the <think>...</think> structure.
     Returns:
         1.0 for perfect single-block structure.
@@ -55,16 +60,16 @@ def format_reward_fn(prompts, completions, **kwargs) -> list[float]:
     rewards = []
     for comp in completions:
         comp_text = get_completion_text(comp)
-        
+
         num_start = comp_text.count("<think>")
         num_end = comp_text.count("</think>")
-        
+
         # Strict single-block format check
         if num_start == 1 and num_end == 1:
             start_idx = comp_text.find("<think>")
             end_idx = comp_text.find("</think>")
             # Ensure correct ordering and some content after </think>
-            if start_idx < end_idx and len(comp_text[end_idx + 8:].strip()) > 0:
+            if start_idx < end_idx and len(comp_text[end_idx + 8 :].strip()) > 0:
                 rewards.append(1.0)
             else:
                 rewards.append(0.5)
@@ -81,7 +86,10 @@ def format_reward_fn(prompts, completions, **kwargs) -> list[float]:
             rewards.append(0.0)
     return rewards
 
-def math_correctness_reward_fn(prompts, completions, target_answer, **kwargs) -> list[float]:
+
+def math_correctness_reward_fn(
+    prompts, completions, target_answer, **kwargs
+) -> list[float]:
     """
     Standard math correctness reward.
     Compares the extracted numerical answer with the target ground truth.
@@ -91,14 +99,17 @@ def math_correctness_reward_fn(prompts, completions, target_answer, **kwargs) ->
         comp_text = get_completion_text(comp)
         extracted = extract_xml_answer(comp_text)
         target_clean = target.strip().replace(",", "")
-        
+
         if extracted and extracted == target_clean:
             rewards.append(1.0)
         else:
             rewards.append(0.0)
     return rewards
 
-def p_grpo_format_reward_fn(prompts, completions, target_answer, **kwargs) -> list[float]:
+
+def p_grpo_format_reward_fn(
+    prompts, completions, target_answer, **kwargs
+) -> list[float]:
     """
     Posterior-GRPO Formatting Reward.
     Zeroes out the formatting (process) reward if the final math answer is incorrect.
@@ -107,24 +118,24 @@ def p_grpo_format_reward_fn(prompts, completions, target_answer, **kwargs) -> li
     rewards = []
     for comp, target in zip(completions, target_answer):
         comp_text = get_completion_text(comp)
-        
+
         # Check correctness first
         extracted = extract_xml_answer(comp_text)
         target_clean = target.strip().replace(",", "")
-        is_correct = (extracted and extracted == target_clean)
-        
+        is_correct = extracted and extracted == target_clean
+
         if not is_correct:
             rewards.append(0.0)
             continue
-            
+
         # If correct, evaluate format strictly
         num_start = comp_text.count("<think>")
         num_end = comp_text.count("</think>")
-        
+
         if num_start == 1 and num_end == 1:
             start_idx = comp_text.find("<think>")
             end_idx = comp_text.find("</think>")
-            if start_idx < end_idx and len(comp_text[end_idx + 8:].strip()) > 0:
+            if start_idx < end_idx and len(comp_text[end_idx + 8 :].strip()) > 0:
                 rewards.append(1.0)
             else:
                 rewards.append(0.5)
@@ -136,8 +147,9 @@ def p_grpo_format_reward_fn(prompts, completions, target_answer, **kwargs) -> li
             rewards.append(0.2)
         else:
             rewards.append(0.2)
-            
+
     return rewards
+
 
 def step_grpo_reward_fn(prompts, completions, target_answer, **kwargs) -> list[float]:
     """
@@ -151,47 +163,46 @@ def step_grpo_reward_fn(prompts, completions, target_answer, **kwargs) -> list[f
     gamma = 0.99
     # Transition tokens indicating a new step/reasoning transition
     transition_tokens = ["wait", "hmm", "but", "thinking", "actually", "let me check"]
-    
+
     for comp, target in zip(completions, target_answer):
         comp_text = get_completion_text(comp)
-        
+
         extracted = extract_xml_answer(comp_text)
         target_clean = target.strip().replace(",", "")
-        is_correct = (extracted and extracted == target_clean)
-        
+        is_correct = extracted and extracted == target_clean
+
         if not is_correct:
             rewards.append(0.0)
             continue
-            
+
         # 1. Capture all completed think blocks globally
         think_blocks = re.findall(r"<think>(.*?)</think>", comp_text, re.DOTALL)
         think_content_list = [block.lower() for block in think_blocks]
-        
+
         # 2. Fallback for unclosed think tag: extract everything after the last <think>
         num_start = comp_text.count("<think>")
         num_end = comp_text.count("</think>")
         if num_start > 0 and num_end == 0:
             unclosed_monologue = comp_text.split("<think>")[-1].lower()
             think_content_list.append(unclosed_monologue)
-            
-        # If no think tags were present at all, check the whole response
-        if num_start == 0:
-            think_content = comp_text.lower()
-        else:
-            think_content = " ".join(think_content_list)
-            
+
+        # Fix: Count cognitive transition tokens globally across the entire completion text
+        # to prevent the model from escaping penalty by placing transition words outside <think> tags.
+        global_content = comp_text.lower()
+
         # 3. Count occurrence of cognitive transition tokens globally
         steps = 0
         for token in transition_tokens:
-            steps += think_content.count(token)
-            
-        # 4. Multi-block penalty calculation: n - 1 extra blocks penalize 0.1 each
+            steps += global_content.count(token)
+
+        # 4. Multi-block penalty calculation: Increase penalty to 0.5 per extra block
+        # to completely eliminate the mathematical arbitrage of opening multiple think blocks.
         block_penalty = 0.0
         if num_start > 1:
-            block_penalty = 0.1 * (num_start - 1)
-            
+            block_penalty = 0.5 * (num_start - 1)
+
         # Calculate decayed reward and apply block penalty
-        decayed_reward = max(0.0, float(gamma ** steps) - block_penalty)
+        decayed_reward = max(0.0, float(gamma**steps) - block_penalty)
         rewards.append(decayed_reward)
-        
+
     return rewards

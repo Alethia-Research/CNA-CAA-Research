@@ -1,9 +1,9 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.28 (MiKTeX 25.12) (preloaded format=pdflatex 2026.5.27)  28 MAY 2026 17:29
+This is pdfTeX, Version 3.141592653-2.6-1.40.28 (MiKTeX 25.12) (preloaded format=pdflatex 2026.5.27)  28 MAY 2026 18:22
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
-**./paper_draft.tex
-(paper_draft.tex
+**./paper2_draft.tex
+(paper2_draft.tex
 LaTeX2e <2025-11-01>
 L3 programming layer <2025-12-24>
 (C:\Users\NewAdmin\AppData\Local\Programs\MiKTeX\tex/latex/base\article.cls
@@ -764,8 +764,8 @@ Package hyperref Info: Option `colorlinks' set `true' on input line 24.
 pdftex.def
 File: l3backend-pdftex.def 2025-10-09 L3 backend support: PDF output (pdfTeX)
 \l__color_backend_stack_int=\count348
-) (paper_draft.aux)
-\openout1 = `paper_draft.aux'.
+) (paper2_draft.aux)
+\openout1 = `paper2_draft.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 48.
 LaTeX Font Info:    ... okay on input line 48.
@@ -847,9 +847,9 @@ s.cfg
 File: epstopdf-sys.cfg 2021/03/18 v2.0 Configuration of epstopdf for MiKTeX
 ))
 Package hyperref Info: Link coloring ON on input line 48.
- (paper_draft.out) (paper_draft.out)
+ (paper2_draft.out) (paper2_draft.out)
 \@outlinefile=\write4
-\openout4 = `paper_draft.out'.
+\openout4 = `paper2_draft.out'.
 
 LaTeX Info: Redefining \microtypecontext on input line 48.
 Package microtype Info: Applying patch `item' on input line 48.
@@ -892,104 +892,76 @@ File: mt-msb.cfg 2005/06/01 v1.0 microtype config. file: AMS symbols (b) (RS)
 ) [1
 
 {C:/Users/NewAdmin/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map}]
+
+LaTeX Warning: Citation `schulman2017proximal' on page 2 undefined on input lin
+e 82.
+
 [2]
+Overfull \hbox (76.88057pt too wide) in paragraph at lines 140--155
+ [][] 
+ []
+
 
 LaTeX Warning: `h' float specifier changed to `ht'.
 
-[3] [4]
-Overfull \hbox (15.1495pt too wide) in paragraph at lines 190--192
-\OT1/cmr/m/n/10 (-20) We se-lect the first subto-ken that de-codes to a non-whi
-tespace char-ac-ter. The pos-i-tive scores form \OT1/cmtt/m/n/10 circuit[]forwa
-rd
+[3]
+Package hyperref Info: bookmark level for unknown lstlisting defaults to 0 on i
+nput line 163.
+ [4]
+Overfull \hbox (96.00388pt too wide) in paragraph at lines 198--211
+ [][] 
  []
 
 [5]
-<figures/cna_scaling_law_plot.png, id=311, 1606.0pt x 1003.75pt>
-File: figures/cna_scaling_law_plot.png Graphic file (type png)
-<use figures/cna_scaling_law_plot.png>
-Package pdftex.def Info: figures/cna_scaling_law_plot.png  used on input line 2
-51.
-(pdftex.def)             Requested size: 328.82707pt x 205.5097pt.
-
-
-Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 256.
-
-
-Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 256.
-
-[6 <./figures/cna_scaling_law_plot.png>] [7]
-
-LaTeX Warning: `h' float specifier changed to `ht'.
-
-[8] [9]
-Overfull \hbox (10.18692pt too wide) in paragraph at lines 407--408
-[]\OT1/cmr/bx/n/10 (-20) SentencePiece Space-Token Bug\OT1/cmr/m/n/10 (-20) : S
-en-ten-ce-Piece to-k-enizes \OT1/cmtt/m/n/10 " London" \OT1/cmr/m/n/10 (-20) an
-d \OT1/cmtt/m/n/10 " Paris" \OT1/cmr/m/n/10 (-20) as \OT1/cmtt/m/n/10 [space[]t
-oken,
+Overfull \hbox (178.97282pt too wide) in paragraph at lines 231--232
+[][] 
  []
 
-
-Underfull \hbox (badness 10000) in paragraph at lines 453--453
-[]|\OT1/cmr/bx/n/10.95 (+20) Baseline
- []
-
-
-LaTeX Warning: `h' float specifier changed to `ht'.
-
-[10]
-
-LaTeX Warning: `h' float specifier changed to `ht'.
-
-[11] [12] [13] [14] [15] [16] [17] (paper_draft.aux)
+[6] (paper2_draft.aux)
  ***********
 LaTeX2e <2025-11-01>
 L3 programming layer <2025-12-24>
  ***********
-Package rerunfilecheck Info: File `paper_draft.out' has not changed.
-(rerunfilecheck)             Checksum: 66BB948CE3CC615EA3D2238A90F5F2F9;14104.
+
+
+LaTeX Warning: There were undefined references.
+
+Package rerunfilecheck Info: File `paper2_draft.out' has not changed.
+(rerunfilecheck)             Checksum: 2C197C91F4D2DDE10028D6F9833E7238;3350.
  ) 
 Here is how much of TeX's memory you used:
- 24734 strings out of 467871
- 449256 string characters out of 5416924
- 876291 words of memory out of 5000000
- 52871 multiletter control sequences out of 15000+600000
- 647386 words of font info for 202 fonts, out of 8000000 for 9000
+ 24770 strings out of 467871
+ 448123 string characters out of 5416924
+ 1025043 words of memory out of 5000000
+ 53065 multiletter control sequences out of 15000+600000
+ 645365 words of font info for 164 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 84i,13n,104p,1259b,571s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 84i,9n,104p,1638b,1108s stack positions out of 10000i,1000n,20000p,200000b,200000s
  <C:\Users\NewAdmin\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\t
-crm1095.pk> <C:\Users\NewAdmin\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec
-/dpi600\tcrm1000.pk> <C:\Users\NewAdmin\AppData\Local\MiKTeX\fonts/pk/ljfour/jk
-nappen/ec/dpi600\tcti1000.pk> <C:\Users\NewAdmin\AppData\Local\MiKTeX\fonts/pk/
-ljfour/jknappen/ec/dpi600\tcbx1000.pk><C:/Users/NewAdmin/AppData/Local/Programs
-/MiKTeX/fonts/type1/public/amsfonts/cm/cmbx10.pfb><C:/Users/NewAdmin/AppData/Lo
-cal/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmbx12.pfb><C:/Users/NewAdmi
-n/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmex10.pfb><C:/U
-sers/NewAdmin/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi
-10.pfb><C:/Users/NewAdmin/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsf
-onts/cm/cmmi5.pfb><C:/Users/NewAdmin/AppData/Local/Programs/MiKTeX/fonts/type1/
-public/amsfonts/cm/cmmi7.pfb><C:/Users/NewAdmin/AppData/Local/Programs/MiKTeX/f
-onts/type1/public/amsfonts/cm/cmmi8.pfb><C:/Users/NewAdmin/AppData/Local/Progra
-ms/MiKTeX/fonts/type1/public/amsfonts/cm/cmr10.pfb><C:/Users/NewAdmin/AppData/L
-ocal/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr12.pfb><C:/Users/NewAdmi
-n/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr5.pfb><C:/Use
-rs/NewAdmin/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr7.p
-fb><C:/Users/NewAdmin/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts
-/cm/cmr8.pfb><C:/Users/NewAdmin/AppData/Local/Programs/MiKTeX/fonts/type1/publi
-c/amsfonts/cm/cmsy10.pfb><C:/Users/NewAdmin/AppData/Local/Programs/MiKTeX/fonts
-/type1/public/amsfonts/cm/cmsy5.pfb><C:/Users/NewAdmin/AppData/Local/Programs/M
-iKTeX/fonts/type1/public/amsfonts/cm/cmsy7.pfb><C:/Users/NewAdmin/AppData/Local
-/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy8.pfb><C:/Users/NewAdmin/Ap
-pData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmti10.pfb><C:/Users
-/NewAdmin/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmtt10.p
-fb><C:/Users/NewAdmin/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts
-/cm/cmtt12.pfb><C:/Users/NewAdmin/AppData/Local/Programs/MiKTeX/fonts/type1/pub
-lic/amsfonts/symbols/msam10.pfb>
-Output written on paper_draft.pdf (17 pages, 530629 bytes).
+crm1000.pk> <C:\Users\NewAdmin\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec
+/dpi600\tcti1000.pk> <C:\Users\NewAdmin\AppData\Local\MiKTeX\fonts/pk/ljfour/jk
+nappen/ec/dpi600\tcbx1000.pk><C:/Users/NewAdmin/AppData/Local/Programs/MiKTeX/f
+onts/type1/public/amsfonts/cm/cmbx10.pfb><C:/Users/NewAdmin/AppData/Local/Progr
+ams/MiKTeX/fonts/type1/public/amsfonts/cm/cmbx12.pfb><C:/Users/NewAdmin/AppData
+/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmex10.pfb><C:/Users/NewA
+dmin/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi10.pfb><C
+:/Users/NewAdmin/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/c
+mmi5.pfb><C:/Users/NewAdmin/AppData/Local/Programs/MiKTeX/fonts/type1/public/am
+sfonts/cm/cmmi7.pfb><C:/Users/NewAdmin/AppData/Local/Programs/MiKTeX/fonts/type
+1/public/amsfonts/cm/cmr10.pfb><C:/Users/NewAdmin/AppData/Local/Programs/MiKTeX
+/fonts/type1/public/amsfonts/cm/cmr12.pfb><C:/Users/NewAdmin/AppData/Local/Prog
+rams/MiKTeX/fonts/type1/public/amsfonts/cm/cmr7.pfb><C:/Users/NewAdmin/AppData/
+Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy10.pfb><C:/Users/NewAd
+min/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy7.pfb><C:/
+Users/NewAdmin/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmt
+i10.pfb><C:/Users/NewAdmin/AppData/Local/Programs/MiKTeX/fonts/type1/public/ams
+fonts/cm/cmtt10.pfb><C:/Users/NewAdmin/AppData/Local/Programs/MiKTeX/fonts/type
+1/public/amsfonts/cm/cmtt12.pfb><C:/Users/NewAdmin/AppData/Local/Programs/MiKTe
+X/fonts/type1/public/amsfonts/cm/cmtt9.pfb><C:/Users/NewAdmin/AppData/Local/Pro
+grams/MiKTeX/fonts/type1/public/amsfonts/symbols/msbm10.pfb>
+Output written on paper2_draft.pdf (6 pages, 260095 bytes).
 PDF statistics:
- 531 PDF objects out of 1000 (max. 8388607)
- 135 named destinations out of 1000 (max. 500000)
- 42970 words of extra memory for PDF output out of 42996 (max. 10000000)
+ 247 PDF objects out of 1000 (max. 8388607)
+ 56 named destinations out of 1000 (max. 500000)
+ 47757 words of extra memory for PDF output out of 51595 (max. 10000000)
 

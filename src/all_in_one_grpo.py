@@ -212,7 +212,7 @@ def step_grpo_reward_fn(prompts, completions, target_answer, **kwargs) -> list[f
         
         extracted = extract_xml_answer(comp_text)
         target_clean = target.strip().replace(",", "")
-        is_correct = (extracted and extracted == target_clean)
+        is_correct = extracted and extracted == target_clean
         
         if not is_correct:
             rewards.append(0.0)
@@ -229,21 +229,20 @@ def step_grpo_reward_fn(prompts, completions, target_answer, **kwargs) -> list[f
             unclosed_monologue = comp_text.split("<think>")[-1].lower()
             think_content_list.append(unclosed_monologue)
             
-        # If no think tags were present at all, check the whole response
-        if num_start == 0:
-            think_content = comp_text.lower()
-        else:
-            think_content = " ".join(think_content_list)
+        # Fix: Count cognitive transition tokens globally across the entire completion text
+        # to prevent the model from escaping penalty by placing transition words outside <think> tags.
+        global_content = comp_text.lower()
             
         # 3. Count occurrence of cognitive transition tokens globally
         steps = 0
         for token in transition_tokens:
-            steps += think_content.count(token)
+            steps += global_content.count(token)
             
-        # 4. Multi-block penalty calculation: n - 1 extra blocks penalize 0.1 each
+        # 4. Multi-block penalty calculation: Increase penalty to 0.5 per extra block
+        # to completely eliminate the mathematical arbitrage of opening multiple think blocks.
         block_penalty = 0.0
         if num_start > 1:
-            block_penalty = 0.1 * (num_start - 1)
+            block_penalty = 0.5 * (num_start - 1)
             
         # Calculate decayed reward and apply block penalty
         decayed_reward = max(0.0, float(gamma ** steps) - block_penalty)
