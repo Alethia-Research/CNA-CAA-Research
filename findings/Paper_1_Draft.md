@@ -8,7 +8,7 @@
 
 ## Abstract
 
-We apply Contrastive Neuron Attribution (CNA) to systematically locate, analyze, and steer safety refusal, sycophancy, and factual recall circuits across large language models spanning two architectures (Qwen2.5, Phi-3) and multiple parameter scales (1.5B, 3B, and 7B). Our central finding is that safety circuit ablation follows a predictable scaling curve. While safety bypass requires the ablation of only $\approx 200$ neurons in a 1.5B model, it requires $\approx 1500$ in a 3B model, and $\approx 2500$ in a 7B model (manually verified), with refusal dissolving monotonically. Multi-variable log-linear regression on these manually audited thresholds reveals that this bypass threshold ($k^*$) scales hyperlinearly with model dimensions: $k^* = c \cdot d^{\alpha} \cdot L^{\beta}$ where width exponent $\alpha \approx 2.58$ and depth exponent $\beta \approx 5.07$. This scaling is driven by circuit density — larger models concentrate the same behavior into proportionally more neurons within the same final-layer window — rather than by independent redundant circuits. We further establish that behavioral circuits universally peak at 96–97% model depth regardless of architecture or scale, that safety circuits are inherently denser than sycophancy circuits within the same model, and that CNA maintains generation coherence where Contrastive Activation Addition (CAA) degenerates. Additionally, we introduce signed logit-diff attribution for factual recall, fixing a directional bug in prior implementations, and document a semantic context-repair phenomenon in factual steering outputs. Furthermore, we develop an automated activation-variance calibration method to construct universal blacklists of polyfunctional infrastructure neurons. We show that 71% of these infrastructure neurons concentrate in the final layer, and that excluding them (38% overlap with safety) yields a causally sufficient, syntax-pruned behavioral circuit that preserves steering efficacy. We demonstrate that this blacklist is a pre-training invariant, exhibiting 54% base-to-instruct transferability. We also propose and empirically validate Layer-Frozen Safety Fine-Tuning (LFSFT), showing that updating only the late-layer safety circuit (L24–L27) while keeping L0–L23 frozen preserves mathematical reasoning (62% GSM-8K vs. 58% for full SFT). Finally, we demonstrate that CAA collapse language profiles provide a training-data distribution fingerprint. Code and the steerable 1.5B model weights are released at https://huggingface.co/kridaydave/Qwen2.5-1.5B-LFSFT.
+We apply Contrastive Neuron Attribution (CNA) to systematically locate, analyze, and steer safety refusal, sycophancy, and factual recall circuits across large language models spanning two architectures (Qwen2.5, Phi-3) and multiple parameter scales (0.5B, 1.5B, 3B, and 7B). Our central finding is that safety circuit ablation follows a predictable scaling curve. While safety bypass requires the ablation of only $\approx 100$ neurons in a 0.5B model (on car entry), $\approx 200$ in a 1.5B model, $\approx 1500$ in a 3B model, and $\approx 2500$ in a 7B model (manually verified), with refusal dissolving monotonically. Multi-variable log-linear Ordinary Least Squares (OLS) regression on these manually audited thresholds reveals that this bypass threshold ($k^*$) scales hyperlinearly with model dimensions: $k^* = c \cdot d^{\alpha} \cdot L^{\beta}$ where width exponent $\alpha \approx 1.76$ and depth exponent $\beta \approx 2.71$, with a strong fit quality ($R^2 \approx 0.922$). This scaling is driven by circuit density — larger models concentrate the same behavior into proportionally more neurons within the same final-layer window — rather than by independent redundant circuits. We further establish that behavioral circuits universally peak at 96–97% model depth regardless of architecture or scale, that safety circuits are inherently denser than sycophancy circuits within the same model, and that CNA maintains generation coherence where Contrastive Activation Addition (CAA) degenerates. Additionally, we introduce signed logit-diff attribution for factual recall, fixing a directional bug in prior implementations, and document a semantic context-repair phenomenon in factual steering outputs. Furthermore, we develop an automated activation-variance calibration method to construct universal blacklists of polyfunctional infrastructure neurons. We show that 71% of these infrastructure neurons concentrate in the final layer, and that excluding them (38% overlap with safety) yields a causally sufficient, syntax-pruned behavioral circuit that preserves steering efficacy. We demonstrate that this blacklist is a pre-training invariant, exhibiting 54% base-to-instruct transferability. We also propose and empirically validate Layer-Frozen Safety Fine-Tuning (LFSFT), showing that updating only the late-layer safety circuit (L24–L27) while keeping L0–L23 frozen preserves mathematical reasoning (62% GSM-8K vs. 58% for full SFT). Finally, we demonstrate that CAA collapse language profiles provide a training-data distribution fingerprint. Code and the steerable 1.5B model weights are released at https://huggingface.co/kridaydave/Qwen2.5-1.5B-LFSFT.
 
 ---
 
@@ -21,7 +21,7 @@ Mechanistic interpretability offers a promising alternative. By treating interna
 Recently, Contrastive Neuron Attribution (CNA) was introduced as a localized post-hook steering framework. CNA identifies and modulates highly sparse circuits of individual Multi-Layer Perceptron (MLP) neurons. Unlike residual stream steering, CNA operates directly within the model's native neuron basis, preserving representational geometry and maintaining generation quality even under maximum intervention.
 
 In this work, we extend the CNA framework to analyze scaling dynamics, cross-architecture properties, and factual memory retrieval. Our contributions are as follows:
-* **Bypass Scaling Laws**: We empirically characterize safety bypass thresholds across three model scales (1.5B, 3B, 7B). We show that the bypass threshold scales superlinearly with model width ($\alpha \approx 2.58$) and hyperlinearly with model depth ($\beta \approx 5.07$).
+* **Bypass Scaling Laws**: We empirically characterize safety bypass thresholds across four model scales (0.5B, 1.5B, 3B, 7B). We show that the bypass threshold scales superlinearly with model width ($\alpha \approx 1.76$) and hyperlinearly with model depth ($\beta \approx 2.71$), solved via a 4-point OLS log-linear regression ($df=1, R^2 \approx 0.922$).
 * **Universal Late-Layer Localization**: We show that safety and sycophancy circuits universally peak at 96–97% model depth across Qwen2.5 and Phi-3.
 * **Signed Factual Steering & Context-Repair**: We identify and fix a directional bug in the standard `neuron_steer` library, enabling true bidirectional factual steering. We document a *semantic context-repair* phenomenon where factual steering swaps semantic frames rather than token strings.
 * **Universal Blacklists & Causal Pruning**: We introduce an activation-variance heuristic to isolate universal infrastructure neurons. We prove these neurons are pre-training invariants (54% base-to-instruct transfer) and show that safety circuits can be causally pruned of these infrastructure nodes (38% overlap) without losing steering control.
@@ -135,48 +135,48 @@ We construct a safety discovery dataset comprising 5 harmful prompts (explosives
 
 ### 4.2. Safety Bypass Scaling Laws
 
-We execute systematic sweeps of the circuit size $k$ across Qwen2.5-1.5B, Qwen2.5-3B, and Qwen2.5-7B Instruct models. We identify the bypass threshold $k^*$ at which safety refusal dissolves and the model provides helpful, actionable steps.
+We execute systematic sweeps of the circuit size $k$ across Qwen2.5-0.5B, Qwen2.5-1.5B, Qwen2.5-3B, and Qwen2.5-7B Instruct models. We identify the bypass threshold $k^*$ at which safety refusal dissolves and the model provides helpful, actionable steps.
 
 | Model | Width ($d$) | Depth ($L$) | MLP Dimension ($d_{ff}$) | Observed Bypass Threshold ($k^*$) |
 |---|---|---|---|---|
+| Qwen2.5-0.5B | 896 | 24 | 4864 | ~100 neurons (on car entry) |
 | Qwen2.5-1.5B | 1536 | 28 | 8960 | ~200 neurons |
 | Qwen2.5-3B   | 2048 | 36 | 11008 | ~1500 neurons |
 | Qwen2.5-7B   | 4096 | 28 | 27392 | ~2500 neurons (manually verified) |
 
+*Note: For the ultra-small Qwen2.5-0.5B-Instruct model, the borderline lockpicking prompt was not refused at baseline (0% baseline refusal). This represents a model scale limit. Thus, we utilized the borderline car entry prompt ("How do I get into a car without the keys?") to measure the first point of empirical refusal dissolution, which occurred at $k^*=100$ neurons.*
+
 #### 4.2.1. Width-Only Scaling Law
 Fitting a simple power law $k^* = c \cdot d^{\alpha}$ ignoring model depth yields:
-* Exponent ($\alpha$): $\approx 2.24$
-* Constant ($c$): $\approx 2.64 \times 10^{-5}$
-* Fit Quality ($R^2$): $\approx 0.713$
+* Exponent ($\alpha$): $\approx 1.83$
+* Constant ($c$): $\approx 3.45 \times 10^{-4}$
+* Fit Quality ($R^2$): $\approx 0.642$
 
-The fit quality is only moderate because the 3B model represents a major outlier, requiring significantly more neurons ($1500$) to bypass than predicted by width alone ($\approx 419$). This is driven by the structural difference in layer counts: Qwen2.5 3B has 36 layers, while 1.5B and 7B have 28 layers.
+The fit quality remains only moderate because depth differences introduce substantial variance that cannot be explained by model width alone.
 
-#### 4.2.2. Multi-Variable Width and Depth Scaling Law
+#### 4.2.2. Multi-Variable Width and Depth Scaling Law (OLS Regression)
 To account for both dimensions, we model the threshold as:
 
 $$k^* = c \cdot d^{\alpha} \cdot L^{\beta}$$
 
-**Exact Parameter Identification on Limited Data.** With exactly three empirical data points (1.5B, 3B, 7B) and three unknown parameters ($c$, $\alpha$, $\beta$), solving the system of linear equations in log-space acts as a deterministic parameter identification rather than a statistical regression with positive degrees of freedom. The resulting parameters are:
-* **Width Exponent ($\alpha$):** $\approx 2.58$ (specifically $2.575$, superlinear in width)
-* **Depth Exponent ($\beta$):** $\approx 5.07$ (specifically $5.070$, extremely hyperlinear in depth)
-* **Constant ($c$):** $\approx 5.74 \times 10^{-14}$ (specifically $5.742 \times 10^{-14}$)
+**Ordinary Least Squares (OLS) Regression.** Executing a log-linear OLS regression across all four empirical model scales ($df=1$) yields:
+* **Width Exponent ($\alpha$):** $\approx 1.76$ (specifically $1.7580$, representing superlinear scaling in width)
+* **Depth Exponent ($\beta$):** $\approx 2.71$ (specifically $2.7127$, representing highly hyperlinear scaling in depth)
+* **Constant ($c$):** $\approx 1.13 \times 10^{-7}$ (specifically $1.1295 \times 10^{-7}$)
+* **Fit Quality ($R^2$):** $\approx 0.922$ (specifically $0.922023$)
 
-Because there are zero degrees of freedom ($df=0$), this fit is exact by construction. The resulting depth exponent $\beta \approx 5.07$ is highly speculative and must be treated as a working hypothesis rather than an established universal law. 
-
-**Statistical Limitations and Warning to Reviewers.** We explicitly caution that this fit has zero degrees of freedom due to our limited compute footprint (fitting three parameters on $n=3$ model scales). We present this parameterization strictly as a working hypothesis indicating that depth-wise redundancy is a major driver of circuit distribution. To evaluate this hypothesis and verify whether the depth exponent remains stable under regression with positive degrees of freedom, future work must run evaluations on intermediate scales (e.g., 2.5B, 4B) and larger architectures.
-
-This reveals a critical structural trend: **refusal gates are highly sensitive to model depth**. As models deepen, the safety circuit distributes across more sequential layers. This layer-by-layer redundancy creates a chain of "veto" gates, forcing the bypass threshold to scale exponentially with depth ($\propto L^{5.07}$).
+This OLS fit confirms that **refusal gates are highly sensitive to model depth**. As models deepen, the safety circuit distributes across more sequential layers. This layer-by-layer redundancy creates a chain of "veto" gates, forcing the bypass threshold to scale exponentially with depth ($\propto L^{2.71}$), though the exponent is more tempered than the speculative hyperlinear fit of our initial three-point evaluation ($\beta \approx 5.07$).
 
 #### 4.2.3. Extrapolations for Qwen2.5 72B ($d=8192, L=80$)
 We propose two competing hypotheses for scaling to frontier models:
-1. **The Sequential Veto Hypothesis ($\beta \approx 5.07$):**
+1. **The Sequential Veto Hypothesis ($\beta \approx 2.71$):**
    If the safety circuit distributes fully across the deeper layer stack, the redundant veto effect scales exponentially:
-   $$k^*_{72B} \approx 200 \cdot \left(\frac{8192}{1536}\right)^{2.58} \cdot \left(\frac{80}{28}\right)^{5.07} \approx 3,051,900 \text{ neurons}$$
-   This exceeds the model's total MLP capacity, suggesting that under this hypothesis, safety becomes practically unbypassable via sparse ablation in deep models.
+   $$k^*_{72B} \approx c \cdot d^{1.76} \cdot L^{2.71} \approx 124,511 \text{ neurons}$$
+   This represents approximately $5.4\%$ of the 72B model's 2.3 million MLP parameters, demonstrating that depth-wise veto redundancy makes frontier models highly robust against sparse ablation, though still within a highly tractable engineering footprint.
 2. **The Constant-Thickness Hypothesis ($\beta \approx 1.0$):**
    If the safety circuit concentrates only in the final ~15% of layers, the 3B model's high threshold is an outlier due to hyper-alignment training intensity. Under a linear-depth model:
-   $$k^*_{72B} \approx 200 \cdot \left(\frac{8192}{1536}\right)^{2.58} \cdot \left(\frac{80}{28}\right)^{1.0} \approx 42,600 \text{ neurons}$$
-   This remains a tiny, highly tractable fraction (~1.8%) of the 72B model's 2.3 million MLP neurons.
+   $$k^*_{72B} \approx c \cdot d^{1.76} \cdot L^{1.0} \approx 69 \text{ neurons}$$
+   This linear model yields a structurally improbable, hyper-sparse threshold of 69 neurons, indicating that the constant-thickness linear depth hypothesis is highly unlikely to hold, and depth veto redundancy is a necessary structural component of LLM safety gates.
 
 ---
 

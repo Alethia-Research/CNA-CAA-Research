@@ -10,6 +10,33 @@ import sys
 import json
 import subprocess
 
+# --- Dynamic PyTorch Patching for TorchAO / Unsloth Compatibility ---
+try:
+    import torch
+    # 1. Patch missing low-precision integer dtypes (introduced in PyTorch 2.6)
+    for prefix in ["int", "uint"]:
+        for i in range(1, 8):
+            attr = f"{prefix}{i}"
+            if not hasattr(torch, attr):
+                class DummyDtype:
+                    def __init__(self, name):
+                        self.name = name
+                    def __repr__(self):
+                        return self.name
+                    def __hash__(self):
+                        return hash(self.name)
+                    def __eq__(self, other):
+                        return isinstance(other, DummyDtype) and self.name == other.name
+                setattr(torch, attr, DummyDtype(f"torch.{attr}"))
+                
+    # 2. Patch missing torch.utils._pytree.register_constant (introduced in PyTorch 2.5/2.6)
+    import torch.utils._pytree
+    if not hasattr(torch.utils._pytree, "register_constant"):
+        torch.utils._pytree.register_constant = lambda x: None
+except ImportError:
+    pass
+# --------------------------------------------------------------------
+
 # 1. Automatic Dependency Installer (runs when executed in Google Colab)
 try:
     import unsloth
@@ -358,19 +385,22 @@ def run_pipeline(model_name="unsloth/Qwen2.5-3B-Instruct", mode="step-grpo", max
                 print(f"[-] Invalid format for --layers_to_transform '{layers_to_transform_str}'. Adapting all layers.")
                 layers_to_transform = None
 
-    # Configure LoRA
-    print("[*] Setting up LoRA...")
-    peft_kwargs = {
-        "model": model,
-        "r": 32,
-        "lora_alpha": 32,
-        "target_modules": ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
-        "use_gradient_checkpointing": "unsloth"
-    }
-    if layers_to_transform is not None:
-        peft_kwargs["layers_to_transform"] = layers_to_transform
-        
-    model = FastLanguageModel.get_peft_model(**peft_kwargs)
+    # Configure LoRA (SFT Warm-Start Aware)
+    if hasattr(model, "peft_config"):
+        print("[+] Existing PEFT LoRA adapter detected. Warm-start active. Continuing training on active adapter...")
+    else:
+        print("[*] Setting up LoRA...")
+        peft_kwargs = {
+            "model": model,
+            "r": 32,
+            "lora_alpha": 32,
+            "target_modules": ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+            "use_gradient_checkpointing": "unsloth"
+        }
+        if layers_to_transform is not None:
+            peft_kwargs["layers_to_transform"] = layers_to_transform
+            
+        model = FastLanguageModel.get_peft_model(**peft_kwargs)
     
     # Load formatted dataset
     train_dataset = load_dataset("json", data_files=dataset_path, split="train")

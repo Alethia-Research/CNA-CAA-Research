@@ -1,7 +1,33 @@
+# --- Dynamic PyTorch Patching for TorchAO / Unsloth Compatibility ---
+try:
+    import torch
+    # 1. Patch missing low-precision integer dtypes (introduced in PyTorch 2.6)
+    for prefix in ["int", "uint"]:
+        for i in range(1, 8):
+            attr = f"{prefix}{i}"
+            if not hasattr(torch, attr):
+                class DummyDtype:
+                    def __init__(self, name):
+                        self.name = name
+                    def __repr__(self):
+                        return self.name
+                    def __hash__(self):
+                        return hash(self.name)
+                    def __eq__(self, other):
+                        return isinstance(other, DummyDtype) and self.name == other.name
+                setattr(torch, attr, DummyDtype(f"torch.{attr}"))
+                
+    # 2. Patch missing torch.utils._pytree.register_constant (introduced in PyTorch 2.5/2.6)
+    import torch.utils._pytree
+    if not hasattr(torch.utils._pytree, "register_constant"):
+        torch.utils._pytree.register_constant = lambda x: None
+except ImportError:
+    pass
+# --------------------------------------------------------------------
+
 from unsloth import FastLanguageModel # Must be imported first!
 import os
 import argparse
-import torch
 from datasets import load_dataset
 from transformers import TrainerCallback
 from trl import GRPOConfig, GRPOTrainer
