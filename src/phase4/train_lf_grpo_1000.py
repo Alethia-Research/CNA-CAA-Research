@@ -856,7 +856,8 @@ def run_training_pipeline(
     save_steps=100,
     limit_train=None,
     num_generations=4,
-    no_vllm=False
+    no_vllm=False,
+    resume_adapter_from=None
 ):
     print(f"[*] Starting LF-GRPO training pipeline in mode: {mode.upper()}")
     
@@ -970,7 +971,12 @@ def run_training_pipeline(
         layers_to_transform=resolved_layers, # Freezes all other layers automatically
         use_gradient_checkpointing="unsloth"
     )
-    
+
+    if resume_adapter_from:
+        print(f"[*] Loading adapter weights from {resume_adapter_from}...")
+        model.load_adapter(resume_adapter_from, adapter_name="default")
+        print("[+] Adapter weights loaded — stage-1 weights restored, continuing from step 100.")
+
     # 5. Load Formatted Dataset
     from datasets import load_dataset
     train_dataset = load_dataset("json", data_files=dataset_path, split="train")
@@ -1227,9 +1233,11 @@ if __name__ == "__main__":
     parser.add_argument("--limit_train", type=int, default=None, help="Limit dataset size")
     parser.add_argument("--num_generations", type=int, default=4, help="Number of completions per prompt")
     parser.add_argument("--no_vllm", action="store_true", help="Disable vLLM")
-    
+    parser.add_argument("--resume_adapter_from", type=str, default=None,
+                        help="HF repo or local path to load LoRA adapter weights before training")
+
     args, _ = parser.parse_known_args()
-    
+
     run_training_pipeline(
         model_name=args.model_name,
         mode=args.mode,
@@ -1241,5 +1249,6 @@ if __name__ == "__main__":
         save_steps=args.save_steps,
         limit_train=args.limit_train,
         num_generations=args.num_generations,
-        no_vllm=args.no_vllm
+        no_vllm=args.no_vllm,
+        resume_adapter_from=args.resume_adapter_from,
     )
