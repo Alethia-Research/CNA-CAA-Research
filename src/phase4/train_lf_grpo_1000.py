@@ -796,6 +796,52 @@ class StepTrackerCallback(TrainerCallback):
                 self.verified = True
 
 # =====================================================================
+# 5b. GOOGLE DRIVE CHECKPOINT UPLOAD CALLBACK
+# =====================================================================
+
+class DriveUploadCallback(TrainerCallback):
+    """Mounts Google Drive and copies each checkpoint after it is saved."""
+
+    def __init__(self, output_dir, drive_dest=None):
+        super().__init__()
+        self.output_dir = output_dir
+        _run = os.path.basename(os.path.abspath(output_dir))
+        self.drive_dest = drive_dest or f"/content/drive/MyDrive/grpo_checkpoints/{_run}"
+        self._mounted = False
+        self._try_mount()
+
+    def _try_mount(self):
+        try:
+            if os.path.ismount("/content/drive"):
+                self._mounted = True
+                os.makedirs(self.drive_dest, exist_ok=True)
+                print(f"[+] Drive already mounted → {self.drive_dest}")
+                return
+            from google.colab import drive as _gd
+            _gd.mount("/content/drive", force_remount=False)
+            self._mounted = True
+            os.makedirs(self.drive_dest, exist_ok=True)
+            print(f"[+] Drive mounted → {self.drive_dest}")
+        except Exception as _e:
+            print(f"[!] Drive mount failed ({_e}) — checkpoints local only.")
+
+    def on_save(self, args, state, control, **kwargs):
+        if not self._mounted:
+            return
+        try:
+            ckpt_dir = os.path.join(self.output_dir, f"checkpoint-{state.global_step}")
+            if not os.path.isdir(ckpt_dir):
+                ckpt_dir = self.output_dir
+            zip_name = f"save_step_{state.global_step}"
+            zip_base = os.path.join(self.drive_dest, zip_name)
+            if os.path.exists(zip_base + ".zip"):
+                os.remove(zip_base + ".zip")
+            shutil.make_archive(zip_base, "zip", root_dir=ckpt_dir)
+            print(f"[+] Step {state.global_step} → {zip_name}.zip uploaded to Drive.")
+        except Exception as _e:
+            print(f"[!] Drive upload failed at step {state.global_step}: {_e}")
+
+# =====================================================================
 # 6. PIPELINE EXECUTION
 # =====================================================================
 
@@ -898,16 +944,9 @@ def run_training_pipeline(
         )
         return FastLanguageModel.from_pretrained(**kwargs)
 
-    try:
-        model, tokenizer = _load_model(use_vllm)
-    except Exception as e:
-        if use_vllm:
-            print(f"[!] Model load with vLLM failed ({type(e).__name__}: {e}).")
-            print("[!] Retrying without vLLM (fast_inference=False)...")
-            use_vllm = False
-            model, tokenizer = _load_model(False)
-        else:
-            raise
+    # Load WITHOUT fast_inference — Unsloth's embedded vLLM doesn't survive get_peft_model()
+    # wrapping. TRL's native use_vllm=True on cuda:0 gives real vLLM generation.
+    model, tokenizer = _load_model(False)
     
     # 4. Late-Layer LoRA Adaption (LF-GRPO)
     num_layers = model.config.num_hidden_layers
@@ -957,18 +996,19 @@ def run_training_pipeline(
         report_to="none",
     )
 
-    # Never pass use_vllm=True to GRPOConfig: TRL's native vLLM integration allocates
-    # cuda:N (next GPU) for its own vLLM server, which doesn't exist on single-GPU T4.
-    # Unsloth loaded the model with fast_inference=True and patches model.generate() to
-    # use vLLM transparently — TRL calls model.generate() and gets vLLM for free.
-    if "use_vllm" in _grpo_params:
-        training_args_kwargs["use_vllm"] = False
-
-    if use_vllm:
-        # top_k is a SamplingParams kwarg — NOT a GRPOConfig field
+    # TRL native vLLM: explicitly pin to cuda:0 so it doesn't grab non-existent cuda:1.
+    # Model loaded with fast_inference=False — Unsloth's embedded vLLM doesn't survive
+    # the PEFT wrapping anyway (generate() calls bypass it, falling back to HF at ~23s/call).
+    if use_vllm and "use_vllm" in _grpo_params:
+        training_args_kwargs["use_vllm"] = True
+        # Force vllm_device to cuda:0 if the param exists (avoids "auto" → cuda:1 error)
+        if "vllm_device" in _grpo_params:
+            training_args_kwargs["vllm_device"] = "cuda:0"
+        else:
+            print("[!] GRPOConfig has no 'vllm_device' param — TRL may grab cuda:1. Watch for error.")
         _vllm_optional = {
-            "vllm_sampling_params": {"top_k": 50},
             "vllm_gpu_memory_utilization": 0.5,
+            "vllm_dtype": "float16",  # T4 compute capability 7.5 < 8.0; bfloat16 unsupported
             "vllm_mode": "colocate",
             "vllm_enforce_eager": True,
         }
@@ -977,8 +1017,52 @@ def run_training_pipeline(
                 training_args_kwargs[k] = v
             else:
                 print(f"[*] GRPOConfig has no '{k}' param — skipping.")
+    elif "use_vllm" in _grpo_params:
+        training_args_kwargs["use_vllm"] = False
 
     training_args = GRPOConfig(**training_args_kwargs)
+
+    # vLLM cannot load bitsandbytes pre-quantized weights (.absmax keys in safetensors).
+    # Unsloth downloads the bnb-4bit variant even for non-bnb model IDs and stores that
+    # path in model.config._name_or_path. vLLM needs an fp16 model path instead.
+    if use_vllm:
+        # Derive canonical fp16 model name: strip unsloth prefix → original publisher
+        _vllm_model_name = model_name
+        if "unsloth/" in model_name.lower():
+            _base = model_name.split("/", 1)[1]
+            if _base.lower().startswith("qwen"):
+                _vllm_model_name = f"Qwen/{_base}"
+            elif _base.lower().startswith("llama"):
+                _vllm_model_name = f"meta-llama/{_base}"
+            elif _base.lower().startswith("mistral"):
+                _vllm_model_name = f"mistralai/{_base}"
+        print(f"[*] vLLM fp16 inference model: {_vllm_model_name}")
+
+        # Set on every config layer PEFT might proxy through
+        for _cfg in [
+            getattr(model, "config", None),
+            getattr(getattr(model, "base_model", None), "config", None),
+            getattr(getattr(getattr(model, "base_model", None), "model", None), "config", None),
+        ]:
+            if _cfg is not None:
+                _cfg._name_or_path = _vllm_model_name
+
+        # Belt-and-suspenders: patch grpo_trainer's LLM reference so vLLM always
+        # receives the fp16 path regardless of what TRL derives from model.config.
+        import trl.trainer.grpo_trainer as _grpo_m
+        _OrigLLM = getattr(_grpo_m, "LLM", None)
+        if _OrigLLM is not None:
+            _fp16_for_vllm = _vllm_model_name
+            def _safe_llm(*_a, **_kw):
+                _mn = _a[0] if _a else _kw.get("model", "")
+                if isinstance(_mn, str) and _mn != _fp16_for_vllm:
+                    print(f"[*] vLLM: overriding model {_mn!r} → {_fp16_for_vllm!r}")
+                    _a = (_fp16_for_vllm,) + (_a[1:] if _a else ())
+                    _kw.pop("model", None)
+                return _OrigLLM(*_a, **_kw)
+            _grpo_m.LLM = _safe_llm
+    else:
+        _vllm_model_name = model_name
 
     # ── Patch PEFT model with attributes TRL's GRPOTrainer expects from
     #    a bare PreTrainedModel but that PEFT's __getattr__ chain hides. ──
@@ -1011,6 +1095,16 @@ def run_training_pipeline(
         _grpo_mod.create_reference_model = _safe_create_reference_model
         _tmb.create_reference_model = _safe_create_reference_model
 
+    # Timing probe: measure generate() wall time to distinguish generation vs backward bottleneck
+    import time as _time
+    _orig_gen = model.generate
+    def _timed_generate(*_a, **_kw):
+        _t0 = _time.time()
+        _out = _orig_gen(*_a, **_kw)
+        print(f"[TIMING] generate(): {_time.time()-_t0:.2f}s", flush=True)
+        return _out
+    model.generate = _timed_generate
+
     # Also pass ref_model=None directly if the trainer accepts it
     _trainer_kwargs = dict(
         model=model,
@@ -1018,14 +1112,96 @@ def run_training_pipeline(
         reward_funcs=[get_combined_reward_fn(mode=mode, stage_steps=stage_steps)],
         args=training_args,
         train_dataset=train_dataset,
-        callbacks=[StepTrackerCallback(model)]
+        callbacks=[StepTrackerCallback(model), DriveUploadCallback(output_dir)]
     )
     _trainer_params = set(_inspect.signature(GRPOTrainer.__init__).parameters)
     if "ref_model" in _trainer_params:
         _trainer_kwargs["ref_model"] = None
 
     trainer = GRPOTrainer(**_trainer_kwargs)
-    
+
+    # vLLM PEFT weight sync patch.
+    # TRL's GRPOTrainer._prepare_inputs syncs full state_dict to vLLM each step.
+    # With PEFT, state_dict keys are prefixed `base_model.model.` and contain
+    # `.lora_A.default.weight` / `.lora_B.default.weight` keys that vLLM rejects
+    # (ValueError: There is no module or parameter named 'base_model').
+    # We intercept load_weights, merge LoRA A/B into the fp16 base (from HF cache
+    # — already downloaded by vLLM during init), and only push HF-style merged keys.
+    if use_vllm:
+        try:
+            import torch as _th
+            import os as _os
+            import glob as _glob
+            from safetensors import safe_open as _safe_open
+            from huggingface_hub import snapshot_download as _snap_dl
+
+            _sd_dir = _snap_dl(
+                _vllm_model_name,
+                allow_patterns=["*.safetensors", "*.safetensors.index.json"],
+            )
+            _sd_files = sorted(_glob.glob(_os.path.join(_sd_dir, "*.safetensors")))
+            _fp16_base = {}
+            for _f in _sd_files:
+                with _safe_open(_f, framework="pt", device="cpu") as _st:
+                    for _k in _st.keys():
+                        _fp16_base[_k] = _st.get_tensor(_k)
+            print(f"[+] Loaded fp16 base: {len(_sd_files)} safetensors, {len(_fp16_base)} tensors")
+            _fp16_base_gpu = {}  # lazily promoted: only the ~28 adapted-layer tensors
+
+            _llm_model = trainer.llm.llm_engine.model_executor.driver_worker.model_runner.model
+            _orig_load_weights = _llm_model.load_weights
+            _lora_scale = 32.0 / 32.0  # lora_alpha / r
+            _step_counter = [0]
+            _PREFIXES = ("base_model.model.", "base_model.")
+
+            def _peft_load_weights(weights):
+                wd = dict(weights)
+                lora_A_map = {}
+                lora_B_map = {}
+                for name, tensor in wd.items():
+                    clean = name
+                    for _p in _PREFIXES:
+                        if clean.startswith(_p):
+                            clean = clean[len(_p):]
+                            break
+                    if ".lora_A.default.weight" in clean:
+                        base_key = clean.replace(".lora_A.default.weight", ".weight")
+                        lora_A_map[base_key] = tensor
+                    elif ".lora_B.default.weight" in clean:
+                        base_key = clean.replace(".lora_B.default.weight", ".weight")
+                        lora_B_map[base_key] = tensor
+
+                updates = []
+                for base_key, A in lora_A_map.items():
+                    if base_key not in lora_B_map or base_key not in _fp16_base:
+                        continue
+                    B = lora_B_map[base_key]
+                    if base_key not in _fp16_base_gpu:
+                        _fp16_base_gpu[base_key] = _fp16_base[base_key].to(_th.float16).cuda()
+                    base = _fp16_base_gpu[base_key]
+                    A_g = A.detach().to(_th.float16).cuda()
+                    B_g = B.detach().to(_th.float16).cuda()
+                    merged = base + (B_g @ A_g) * _lora_scale
+                    updates.append((base_key, merged))
+
+                _step_counter[0] += 1
+                if _step_counter[0] <= 3:
+                    print(
+                        f"[*] vLLM sync #{_step_counter[0]}: "
+                        f"{len(updates)} LoRA-merged weights pushed "
+                        f"({len(lora_A_map)} A / {len(lora_B_map)} B detected)"
+                    )
+                if not updates:
+                    return
+                return _orig_load_weights(iter(updates))
+
+            _llm_model.load_weights = _peft_load_weights
+            print("[+] Patched vLLM load_weights — LoRA merge from fp16 cache enabled.")
+        except Exception as _e:
+            print(f"[!] vLLM PEFT load_weights patch failed: {_e}")
+            import traceback as _tb
+            _tb.print_exc()
+
     # 7. Run LF-GRPO Training Loop
     print(f"[*] Launching LF-GRPO training loop for {max_steps} steps...")
     trainer.train()
