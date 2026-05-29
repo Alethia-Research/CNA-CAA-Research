@@ -206,3 +206,4 @@ def step_grpo_reward_fn(prompts, completions, target_answer, **kwargs) -> list[f
         rewards.append(decayed_reward)
 
     return rewards
+

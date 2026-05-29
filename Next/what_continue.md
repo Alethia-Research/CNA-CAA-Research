@@ -1,1 +1,1 @@
-We need to compile Phases 2-4 in .md files to make final hypothesis and theories before making latex paper
+Run LF-GRPO for 500 steps to see if model break <think>..</think> xml tags or hallucinates <stepX>

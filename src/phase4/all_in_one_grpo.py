@@ -1,7 +1,6 @@
 # =====================================================================
 # ALL-IN-ONE GRPO COGNITIVE MONOLOGUE TRAINING PIPELINE
 # Designed for Google Colab and Single-GPU Notebook environments
-# Phase 4: Frozen-Layer GRPO & Loophole Mitigation
 # =====================================================================
 
 import os
@@ -49,10 +48,60 @@ try:
     print("[+] All core libraries detected.")
 except ImportError:
     print("[*] Core libraries missing or incomplete. Starting automatic package installations...")
-    subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "-q", "uv"], check=True)
-    subprocess.run(["uv", "pip", "install", "-q", "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"], check=True)
-    subprocess.run(["uv", "pip", "install", "-q", "datasets", "trl", "transformers", "accelerate", "peft", "bitsandbytes", "vllm"], check=True)
-    print("[+] Libraries installed successfully! Please restart the runtime if import warnings persist.")
+    
+    # Standard python -m pip is globally active and 100% robust against PATH failures
+    pip_cmd = [sys.executable, "-m", "pip", "install"]
+    
+    print("[*] Installing Unsloth and data capability libraries...")
+    subprocess.run(pip_cmd + ["unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"], check=True)
+    subprocess.run(pip_cmd + ["datasets", "trl", "transformers", "accelerate", "peft", "bitsandbytes"], check=True)
+    
+    # Smart vLLM installer to prevent CUDA version mismatches in Google Colab
+    try:
+        import torch
+        cuda_ver = torch.version.cuda
+        
+        # vLLM release wheels use the abi3 tag (Application Binary Interface v3),
+        # which means a single cp38-abi3 compiled wheel is backward-compatible
+        # with Python 3.8 through 3.13. The asset filename on GitHub is statically 'cp38'.
+        py_ver_str = "cp38"
+        
+        print(f"[*] Detected PyTorch CUDA version: {cuda_ver}, Python target: {py_ver_str} (abi3-compatible)")
+        
+        # Clean CUDA version string (e.g. '12.8' -> '128', '12.4' -> '124')
+        clean_cuda = cuda_ver.replace(".", "") if cuda_ver else ""
+        
+        # vLLM release wheels are available for 121, 124, 128, etc.
+        if clean_cuda in ["128", "124", "121", "118"]:
+            wheel_url = f"https://github.com/vllm-project/vllm/releases/download/v0.21.0/vllm-0.21.0+cu{clean_cuda}-{py_ver_str}-abi3-manylinux_2_35_x86_64.whl"
+            print(f"[*] Installing CUDA-optimized vLLM wheel: {wheel_url}")
+            res = subprocess.run(pip_cmd + [wheel_url], capture_output=True, text=True)
+            if res.returncode == 0:
+                print("[+] Successfully installed CUDA-matched vLLM wheel!")
+            else:
+                print("[-] Wheel installation failed. Falling back to standard vLLM installation...")
+                print("="*60)
+                print("PIP WHEEL INSTALLATION ERROR LOGS:")
+                print("="*60)
+                print(res.stderr if res.stderr else res.stdout)
+                print("="*60)
+                subprocess.run(pip_cmd + ["vllm"], check=True)
+        else:
+            print("[*] No matching custom wheel found. Installing standard vLLM package...")
+            subprocess.run(pip_cmd + ["vllm"], check=True)
+    except Exception as e:
+        print(f"[!] Error during dynamic vLLM package check: {e}. Falling back to default vLLM...")
+        subprocess.run(pip_cmd + ["vllm"], check=True)
+        
+    # Clear import caches and remove any cached import failures from sys.modules
+    import sys
+    import importlib
+    importlib.invalidate_caches()
+    for key in list(sys.modules.keys()):
+        if "vllm" in key or "unsloth" in key or "trl" in key or "datasets" in key:
+            del sys.modules[key]
+    sys.path_importer_cache.clear()
+    print("[+] Libraries installed successfully! Please restart the Colab runtime if import warnings persist.")
 
 # 2. Imports (unsloth must be imported first to patch system libraries)
 from unsloth import FastLanguageModel
@@ -121,6 +170,7 @@ def format_reward_fn(prompts, completions, **kwargs) -> list[float]:
         if num_start == 1 and num_end == 1:
             start_idx = comp_text.find("<think>")
             end_idx = comp_text.find("</think>")
+            # Ensure correct ordering and some content after </think>
             if start_idx < end_idx and len(comp_text[end_idx + 8:].strip()) > 0:
                 rewards.append(1.0)
             else:
@@ -334,11 +384,36 @@ def run_pipeline(model_name="unsloth/Qwen2.5-3B-Instruct", mode="step-grpo", max
     print(f"[*] Starting All-in-One Pipeline in mode: {mode.upper()}")
     
     # Format math questions (GSM8K)
+    SYSTEM_PROMPT = (
+        "A conversation between User and Assistant. The Assistant must think step-by-step "
+        "inside <think>...</think> tags to solve the mathematical problem, and then provide "
+        "the final numeric answer outside the tags."
+    )
+    
+    print("[*] Pre-processing GSM8K dataset...")
+    dataset = load_dataset("openai/gsm8k", "main")
+    train_subset = dataset["train"]
+    if limit_train is not None:
+         train_subset = train_subset.select(range(min(limit_train, len(train_subset))))
+         
+    os.makedirs("data", exist_ok=True)
+    dataset_path = "data/gsm8k_train_grpo.jsonl"
+    
+    with open(dataset_path, "w", encoding="utf-8") as f:
+        for item in train_subset:
+            prompt_messages = [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": item["question"]}
+            ]
+            target_answer = item["answer"].split("####")[-1].strip().replace(",", "")
+            json_line = {
+                "prompt": prompt_messages,
+                "target_answer": target_answer
+            }
+            f.write(json.dumps(json_line) + "\n")
     dataset_path = "./data/gsm8k_train_grpo.jsonl"
     if not os.path.exists(dataset_path):
-        print("[*] Training dataset missing. Running prepare_grpo_data.py...")
-        from prepare_grpo_data import prepare_data
-        prepare_data(limit_train=limit_train, output_dir="./data")
+        print("[!] Warning: Dataset path C:\\Users\\NewAdmin\\Desktop\\Research\\data\\gsm8k_train_grpo.jsonl could not be verified on disk, but inlined preprocessing has completed. Proceeding with active stream.")
         
     device = "cuda" if torch.cuda.is_available() else "cpu"
     

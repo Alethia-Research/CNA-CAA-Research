@@ -32,7 +32,7 @@ from datasets import load_dataset
 from transformers import TrainerCallback
 from trl import GRPOConfig, GRPOTrainer
 
-# Import our custom reward functions from the local directory
+# Import our custom reward functions
 from rewards import (
     format_reward_fn,
     math_correctness_reward_fn,
@@ -94,9 +94,29 @@ def get_combined_reward_fn(mode="standard", stage_steps=100, format_weight_stage
     """
     Combines formatting and correctness rewards into a single reward function.
     Implements two-stage reward scaling based on the training step tracker.
+    Monitors and reports emergent syntactic tag mutations in real-time during training.
     """
     def reward_fn(prompts, completions, target_answer, **kwargs) -> list[float]:
         global current_step
+        import re
+        from collections import Counter
+        from rewards import get_completion_text
+        
+        # Monitor emergent tag mutations
+        invented_tags = []
+        for comp in completions:
+            comp_text = get_completion_text(comp)
+            tags = re.findall(r"</?(\w+)>", comp_text)
+            for t in tags:
+                if t.lower() not in ["think", "boxed"]:
+                    invented_tags.append(t)
+                    
+        if invented_tags:
+            print(f"\n" + "="*50)
+            print(f"[!] EMERGENT TAG MUTATION DETECTED (Step {current_step})")
+            print(f"    Unique invented tags: {sorted(set(invented_tags))}")
+            print(f"    Occurrences: {Counter(invented_tags).most_common()}")
+            print("="*50 + "\n")
         
         # 1. Calculate formatting reward
         if mode == "p-grpo":
