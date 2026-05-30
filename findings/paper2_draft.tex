@@ -133,6 +133,9 @@ In standard implementations, models discover a major structural loophole: closin
 
 We trained \texttt{unsloth/Qwen2.5-1.5B-Instruct} on the OpenAI GSM8K dataset (1000 samples). The training execution ran in standard Google Colab container environments utilizing a single Tesla T4 GPU (16GB VRAM) under severe time constraints.
 
+\subsection{Dataset \& Setup}
+We utilize the OpenAI GSM8K dataset, subsetting to 1,000 training examples. The active policy model is initialized as \texttt{Qwen2.5-1.5B-Instruct} in 4-bit NormalFloat quantization. The LoRA rank and alpha are set to $32$, targeting all linear projection layers within the late-layer behavioral periphery ($L24$--$L27$). Group size $N=4$ is used for estimating relative policy advantages. Gradient accumulation steps are set to 4 with a batch size of 1 per device, simulating stable scaling on standard 16GB accelerators.
+
 \begin{table}[h]
 \centering
 \caption{Hyperparameter Configurations for Frugal LF-GRPO}
@@ -146,10 +149,39 @@ LoRA Rank / Alpha & 32 / 32 & Target modules: q, k, v, o, gate, up, down \\
 Layers to Transform & [24, 25, 26, 27] & Strictly limits trainable parameters to last 4 layers \\
 Trainable Parameters & 5,275,648 (0.34\%) & Reduces active optimizer states by 7x \\
 Batch Configuration & Batch=1, Accumulation=4 & Simulates gradient stability on standard VRAM \\
-Step Budget & 150 Steps & Stage 1 (0-50: Format), Stage 2 (51-150: Correctness) \\
+Step Budget & 300 Steps & Stage 1 (0--100: Format), Stage 2 (101--300: Correctness) \\
 Optimizer & paged\_adamw\_8bit & Active CUDA page offloading \\
 Sequence Limits & Prompt=512, Completion=384 & Drastically reduces token rollout latency \\
 Group Size ($N$) & 4 & Relative advantage calculation baseline \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Reward Curve Analysis}
+During training, we track the evolution of rewards across optimization steps. Figure~\ref{fig:reward_curve} shows the mean reward ($R_j$) and standard deviation band vs global step. We mark the transition from Stage 1 (formatting priming) to Stage 2 (correctness focus) at step 100 with a vertical dashed line. Formatting compliance aligns rapidly during the first 100 steps, after which the model is optimized directly for math correctness and length decay.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/reward_curve_step_grpo.png}
+\caption{LF-GRPO Mean Reward and Standard Deviation band across training steps. The red dashed line indicates the transition at step 100 from Stage 1 formatting-priming to Stage 2 correctness optimization.}
+\label{fig:reward_curve}
+\end{figure}
+
+\subsection{GSM8K Accuracy Comparison}
+We evaluate the performance of LF-GRPO against standard baseline configurations. Table~\ref{tab:comparison_results} outlines the results on the full GSM8K test split.
+
+\begin{table}[h]
+\centering
+\caption{GSM8K Test Split Performance Benchmarks (1319 Examples)}
+\label{tab:comparison_results}
+\begin{tabular}{llccc}
+\toprule
+\textbf{Model} & \textbf{Mode} & \textbf{Pass@1 (\%)} & \textbf{Avg. Completion Len (tokens)} & \textbf{Reward @ 300} \\
+\midrule
+Qwen2.5-1.5B-Instruct & LF-GRPO (This Work) & [placeholder]\% & [placeholder] & [placeholder] \\
+Qwen2.5-1.5B-Instruct & Standard GRPO (Full) & [placeholder]\% & [placeholder] & [placeholder] \\
+Qwen2.5-1.5B-Instruct & p-GRPO (Baseline) & [placeholder]\% & [placeholder] & [placeholder] \\
+Qwen2.5-1.5B-Instruct & UnSteered Base & 42.0\% & -- & -- \\
 \bottomrule
 \end{tabular}
 \end{table}
