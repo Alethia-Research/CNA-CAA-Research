@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.28 (MiKTeX 25.12) (preloaded format=pdflatex 2026.5.27)  28 MAY 2026 17:29
+This is pdfTeX, Version 3.141592653-2.6-1.40.28 (MiKTeX 25.12) (preloaded format=pdflatex 2026.5.27)  31 MAY 2026 01:23
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -379,17 +379,31 @@ LaTeX Info: Redefining \cite on input line 302.
 LaTeX Info: Redefining \nocite on input line 332.
 Package: cite 2015/02/27  v 5.5
 )
-(C:\Users\NewAdmin\AppData\Local\Programs\MiKTeX\tex/latex/graphics\color.sty
-Package: color 2025/01/14 v1.3e Standard LaTeX Color (DPC)
+(C:\Users\NewAdmin\AppData\Local\Programs\MiKTeX\tex/latex/xcolor\xcolor.sty
+Package: xcolor 2024/09/29 v3.02 LaTeX color extensions (UK)
 
 (C:\Users\NewAdmin\AppData\Local\Programs\MiKTeX\tex/latex/graphics-cfg\color.c
 fg
 File: color.cfg 2016/01/02 v1.6 sample color configuration
 )
-Package color Info: Driver file: pdftex.def on input line 149.
+Package xcolor Info: Driver file: pdftex.def on input line 274.
 
 (C:\Users\NewAdmin\AppData\Local\Programs\MiKTeX\tex/latex/graphics\mathcolor.l
-tx))
+tx)
+Package xcolor Info: Model `cmy' substituted by `cmy0' on input line 1349.
+Package xcolor Info: Model `hsb' substituted by `rgb' on input line 1353.
+Package xcolor Info: Model `RGB' extended on input line 1365.
+Package xcolor Info: Model `HTML' substituted by `rgb' on input line 1367.
+Package xcolor Info: Model `Hsb' substituted by `hsb' on input line 1368.
+Package xcolor Info: Model `tHsb' substituted by `hsb' on input line 1369.
+Package xcolor Info: Model `HSB' substituted by `hsb' on input line 1370.
+Package xcolor Info: Model `Gray' substituted by `gray' on input line 1371.
+Package xcolor Info: Model `wave' substituted by `hsb' on input line 1372.
+)
+(C:\Users\NewAdmin\AppData\Local\Programs\MiKTeX\tex/latex/pagecolor\pagecolor.
+sty
+Package: pagecolor 2025-01-28 v1.2d Provides thepagecolor (HMM)
+)
 (C:\Users\NewAdmin\AppData\Local\Programs\MiKTeX\tex/latex/listings\listings.st
 y
 \lst@mode=\count316
@@ -514,28 +528,6 @@ File: pgfsyssoftpath.code.tex 2025-08-29 v3.1.11a (3.1.11a)
 fsysprotocol.code.tex
 File: pgfsysprotocol.code.tex 2025-08-29 v3.1.11a (3.1.11a)
 ))
-(C:\Users\NewAdmin\AppData\Local\Programs\MiKTeX\tex/latex/xcolor\xcolor.sty
-Package: xcolor 2024/09/29 v3.02 LaTeX color extensions (UK)
-
-(C:\Users\NewAdmin\AppData\Local\Programs\MiKTeX\tex/latex/graphics-cfg\color.c
-fg
-File: color.cfg 2016/01/02 v1.6 sample color configuration
-)
-Package xcolor Info: Driver file: pdftex.def on input line 274.
-LaTeX Info: Redefining \color on input line 762.
-
-(C:\Users\NewAdmin\AppData\Local\Programs\MiKTeX\tex/latex/graphics\mathcolor.l
-tx)
-Package xcolor Info: Model `cmy' substituted by `cmy0' on input line 1349.
-Package xcolor Info: Model `hsb' substituted by `rgb' on input line 1353.
-Package xcolor Info: Model `RGB' extended on input line 1365.
-Package xcolor Info: Model `HTML' substituted by `rgb' on input line 1367.
-Package xcolor Info: Model `Hsb' substituted by `hsb' on input line 1368.
-Package xcolor Info: Model `tHsb' substituted by `hsb' on input line 1369.
-Package xcolor Info: Model `HSB' substituted by `hsb' on input line 1370.
-Package xcolor Info: Model `Gray' substituted by `gray' on input line 1371.
-Package xcolor Info: Model `wave' substituted by `hsb' on input line 1372.
-)
 (C:\Users\NewAdmin\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgf
 core.code.tex
 Package: pgfcore 2025-08-29 v3.1.11a (3.1.11a)
@@ -755,7 +747,7 @@ File: pgfmodulematrix.code.tex 2025-08-29 v3.1.11a (3.1.11a)
 tikz/libraries\tikzlibrarytopaths.code.tex
 File: tikzlibrarytopaths.code.tex 2025-08-29 v3.1.11a (3.1.11a)
 )))
-Package hyperref Info: Option `colorlinks' set `true' on input line 24.
+Package hyperref Info: Option `colorlinks' set `true' on input line 47.
 \c@theorem=\count345
 \c@definition=\count346
 \c@hypothesis=\count347
@@ -767,24 +759,24 @@ File: l3backend-pdftex.def 2025-10-09 L3 backend support: PDF output (pdfTeX)
 ) (paper_draft.aux)
 \openout1 = `paper_draft.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 48.
-LaTeX Font Info:    ... okay on input line 48.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 48.
-LaTeX Font Info:    ... okay on input line 48.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 48.
-LaTeX Font Info:    ... okay on input line 48.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 48.
-LaTeX Font Info:    ... okay on input line 48.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 48.
-LaTeX Font Info:    ... okay on input line 48.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 48.
-LaTeX Font Info:    ... okay on input line 48.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 48.
-LaTeX Font Info:    ... okay on input line 48.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 48.
-LaTeX Font Info:    ... okay on input line 48.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 48.
-LaTeX Font Info:    ... okay on input line 48.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 84.
+LaTeX Font Info:    ... okay on input line 84.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 84.
+LaTeX Font Info:    ... okay on input line 84.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 84.
+LaTeX Font Info:    ... okay on input line 84.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 84.
+LaTeX Font Info:    ... okay on input line 84.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 84.
+LaTeX Font Info:    ... okay on input line 84.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 84.
+LaTeX Font Info:    ... okay on input line 84.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 84.
+LaTeX Font Info:    ... okay on input line 84.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 84.
+LaTeX Font Info:    ... okay on input line 84.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 84.
+LaTeX Font Info:    ... okay on input line 84.
 
 *geometry* driver: auto-detecting
 *geometry* detected driver: pdftex
@@ -846,18 +838,18 @@ Package epstopdf-base Info: Redefining graphics rule for `.eps' on input line 4
 s.cfg
 File: epstopdf-sys.cfg 2021/03/18 v2.0 Configuration of epstopdf for MiKTeX
 ))
-Package hyperref Info: Link coloring ON on input line 48.
+Package hyperref Info: Link coloring ON on input line 84.
  (paper_draft.out) (paper_draft.out)
 \@outlinefile=\write4
 \openout4 = `paper_draft.out'.
 
-LaTeX Info: Redefining \microtypecontext on input line 48.
-Package microtype Info: Applying patch `item' on input line 48.
-Package microtype Info: Applying patch `toc' on input line 48.
-Package microtype Info: Applying patch `eqnum' on input line 48.
-Package microtype Info: Applying patch `footnote' on input line 48.
-Package microtype Info: Applying patch `verbatim' on input line 48.
-LaTeX Info: Redefining \microtypesetup on input line 48.
+LaTeX Info: Redefining \microtypecontext on input line 84.
+Package microtype Info: Applying patch `item' on input line 84.
+Package microtype Info: Applying patch `toc' on input line 84.
+Package microtype Info: Applying patch `eqnum' on input line 84.
+Package microtype Info: Applying patch `footnote' on input line 84.
+Package microtype Info: Applying patch `verbatim' on input line 84.
+LaTeX Info: Redefining \microtypesetup on input line 84.
 Package microtype Info: Generating PDF output.
 Package microtype Info: Character protrusion enabled (level 2).
 Package microtype Info: Using default protrusion set `alltext'.
@@ -874,7 +866,7 @@ File: mt-cmr.cfg 2013/05/19 v2.2 microtype config. file: Computer Modern Roman
 (RS)
 )
 \c@lstlisting=\count355
-LaTeX Font Info:    Trying to load font information for U+msa on input line 51.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 87.
 
  (C:\Users\NewAdmin\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
@@ -882,7 +874,7 @@ File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 (C:\Users\NewAdmin\AppData\Local\Programs\MiKTeX\tex/latex/microtype\mt-msa.cfg
 File: mt-msa.cfg 2006/02/04 v1.1 microtype config. file: AMS symbols (a) (RS)
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 51.
+LaTeX Font Info:    Trying to load font information for U+msb on input line 87.
 
  (C:\Users\NewAdmin\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
@@ -897,34 +889,30 @@ File: mt-msb.cfg 2005/06/01 v1.0 microtype config. file: AMS symbols (b) (RS)
 LaTeX Warning: `h' float specifier changed to `ht'.
 
 [3] [4]
-Overfull \hbox (15.1495pt too wide) in paragraph at lines 190--192
+Overfull \hbox (15.1495pt too wide) in paragraph at lines 252--254
 \OT1/cmr/m/n/10 (-20) We se-lect the first subto-ken that de-codes to a non-whi
 tespace char-ac-ter. The pos-i-tive scores form \OT1/cmtt/m/n/10 circuit[]forwa
 rd
  []
 
-[5]
-<figures/cna_scaling_law_plot.png, id=311, 1606.0pt x 1003.75pt>
-File: figures/cna_scaling_law_plot.png Graphic file (type png)
-<use figures/cna_scaling_law_plot.png>
-Package pdftex.def Info: figures/cna_scaling_law_plot.png  used on input line 2
-51.
-(pdftex.def)             Requested size: 328.82707pt x 205.5097pt.
+[5] [6]
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 332.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 256.
+(hyperref)                removing `math shift' on input line 332.
 
-
-Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 256.
-
-[6 <./figures/cna_scaling_law_plot.png>] [7]
+[7] [8]
 
 LaTeX Warning: `h' float specifier changed to `ht'.
 
-[8] [9]
-Overfull \hbox (10.18692pt too wide) in paragraph at lines 407--408
+
+LaTeX Warning: `h' float specifier changed to `ht'.
+
+[9] [10]
+Overfull \hbox (10.18692pt too wide) in paragraph at lines 486--487
 []\OT1/cmr/bx/n/10 (-20) SentencePiece Space-Token Bug\OT1/cmr/m/n/10 (-20) : S
 en-ten-ce-Piece to-k-enizes \OT1/cmtt/m/n/10 " London" \OT1/cmr/m/n/10 (-20) an
 d \OT1/cmtt/m/n/10 " Paris" \OT1/cmr/m/n/10 (-20) as \OT1/cmtt/m/n/10 [space[]t
@@ -932,33 +920,26 @@ oken,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 453--453
+Underfull \hbox (badness 10000) in paragraph at lines 532--532
 []|\OT1/cmr/bx/n/10.95 (+20) Baseline
  []
 
-
-LaTeX Warning: `h' float specifier changed to `ht'.
-
-[10]
-
-LaTeX Warning: `h' float specifier changed to `ht'.
-
-[11] [12] [13] [14] [15] [16] [17] (paper_draft.aux)
+[11] [12] [13] [14] [15] [16] [17] [18] [19] (paper_draft.aux)
  ***********
 LaTeX2e <2025-11-01>
 L3 programming layer <2025-12-24>
  ***********
 Package rerunfilecheck Info: File `paper_draft.out' has not changed.
-(rerunfilecheck)             Checksum: 66BB948CE3CC615EA3D2238A90F5F2F9;14104.
+(rerunfilecheck)             Checksum: CF78B3F2FBE8423229077D99FC34775E;14366.
  ) 
 Here is how much of TeX's memory you used:
- 24734 strings out of 467871
- 449256 string characters out of 5416924
- 876291 words of memory out of 5000000
- 52871 multiletter control sequences out of 15000+600000
- 647386 words of font info for 202 fonts, out of 8000000 for 9000
+ 24780 strings out of 467871
+ 449681 string characters out of 5416924
+ 877953 words of memory out of 5000000
+ 52905 multiletter control sequences out of 15000+600000
+ 647572 words of font info for 204 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 84i,13n,104p,1259b,571s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 84i,13n,94p,1174b,582s stack positions out of 10000i,1000n,20000p,200000b,200000s
  <C:\Users\NewAdmin\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\t
 crm1095.pk> <C:\Users\NewAdmin\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec
 /dpi600\tcrm1000.pk> <C:\Users\NewAdmin\AppData\Local\MiKTeX\fonts/pk/ljfour/jk
@@ -987,9 +968,9 @@ pData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmti10.pfb><C:/Users
 fb><C:/Users/NewAdmin/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts
 /cm/cmtt12.pfb><C:/Users/NewAdmin/AppData/Local/Programs/MiKTeX/fonts/type1/pub
 lic/amsfonts/symbols/msam10.pfb>
-Output written on paper_draft.pdf (17 pages, 530629 bytes).
+Output written on paper_draft.pdf (19 pages, 396724 bytes).
 PDF statistics:
- 531 PDF objects out of 1000 (max. 8388607)
- 135 named destinations out of 1000 (max. 500000)
- 42970 words of extra memory for PDF output out of 42996 (max. 10000000)
+ 550 PDF objects out of 1000 (max. 8388607)
+ 144 named destinations out of 1000 (max. 500000)
+ 42973 words of extra memory for PDF output out of 42996 (max. 10000000)
 

@@ -1,6 +1,6 @@
 # Brand Identity Guidelines — Alethia Research 
 
-Aletheia — the uncovering of what is hidden.
+*Aletheia — the uncovering of what is hidden.*
 
 ---
 
@@ -13,21 +13,23 @@ Aletheia — the uncovering of what is hidden.
 
 ---
 
-## Color Palette
+## Color Palette (Parchment & Ink Identity)
 
-Harmonious, high-contrast, minimalist color tokens designed for dark terminal interfaces, web dashboards, and paper publications.
+To move away from generic dark terminal themes and embrace a premium, professional academic aesthetic, Alethia Research adopts a **warm parchment and iron gall ink** color system. This is a high-contrast, light-mode design optimized for clear data readability, high-end publications, and elegant web dashboards. **No solid black backgrounds are used.**
 
 | Color | Hex | Sample | Description |
-|---|---|---|---|
-| **Void** | `#0a0a0a` | `■` | Deep background, terminal base. |
-| **Gold** | `#c8b97a` | `■` | Accent color, key highlights, active states. |
-| **Parchment** | `#f0ede6` | `■` | High contrast display and body text color. |
-| **Surface** | `#1e1e1e` | `■` | Container background, buttons, secondary cards. |
-| **Muted** | `#444441` | `■` | Secondary text, borders, structural dividers. |
+| :--- | :---: | :---: | :--- |
+| **Parchment** | `#FCFAF2` | `[■]` | Warm ivory paper base background. Gentle on the eyes, premium paper look. |
+| **Iron Gall Ink** | `#1C2127` | `[■]` | Deep dark blue-grey slate. Primary color for text, headers, and high-contrast logic. |
+| **Aureolin Gold** | `#B58C3D` | `[■]` | Rich antique gold accent. Used for key highlights, active states, and focus metrics. |
+| **Pumice Stone**| `#F3EFE5` | `[■]` | Soft sand-stone container color. Perfect for cards, tables, and button surfaces. |
+| **Muted Slate**   | `#7C776E` | `[■]` | Sophisticated warm grey-taupe. Used for secondary text, borders, and grid lines. |
+| **Bypass Red**    | `#C25953` | `[■]` | Soft coral-red alert. Highlight color for safety bypasses or extreme interventions. |
+| **CNA Blue**      | `#3D8285` | `[■]` | Deep teal accent. Highlight color for contrastive activations and active logic core. |
 
 ---
 
-## Typography & Accent styling
+## Typography & Accent Styling
 
 Symmetric, monospace display and body configurations for terminal outputs and print layout.
 

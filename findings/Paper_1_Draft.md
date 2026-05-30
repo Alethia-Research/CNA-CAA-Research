@@ -8,7 +8,53 @@
 
 ## Abstract
 
-We apply Contrastive Neuron Attribution (CNA) to systematically locate, analyze, and steer safety refusal, sycophancy, and factual recall circuits across large language models spanning two architectures (Qwen2.5, Phi-3) and multiple parameter scales (0.5B, 1.5B, 3B, and 7B). Our findings suggest a preliminary scaling trend for safety bypass thresholds ($k^*$), though we explicitly qualify this with a note on the low sample size (df=1) and the inherent risk of curve-fitting on a four-point regression. While safety bypass requires the ablation of only $\approx 100$ neurons in a 0.5B model (using a borderline car-entry prompt), $\approx 200$ in a 1.5B model, $\approx 1500$ in a 3B model, and $\approx 2500$ in a 7B model under manual audit, a multi-variable log-linear Ordinary Least Squares (OLS) regression yields a provisional power-law fit: $k^* = c \cdot d^{\alpha} \cdot L^{\beta}$ where width exponent $\alpha \approx 1.76$ (superlinear in width) and depth exponent $\beta \approx 2.71$ (hyperlinear in depth), with a fit quality of $R^2 \approx 0.922$. We frame extrapolations of this trend to frontier scales (72B) as speculative bounding cases rather than definitive universal scaling laws. This scaling appears to be driven by circuit density — larger models concentrate the same behavior into proportionally more neurons within the same final-layer window — rather than by independent redundant circuits. We establish that behavioral circuits universally peak at 96–97% model depth regardless of architecture or scale. However, we qualify our sycophancy results: due to baseline floor effects, causal verification of sycophancy circuit steering was not possible at larger scales (7B), rendering behavioral density comparisons between safety and sycophancy tentative and structurally provisional. We demonstrate that CNA maintains generation coherence where Contrastive Activation Addition (CAA) degenerates. Additionally, we introduce signed logit-diff attribution for factual recall, fixing a directional bug in prior implementations, and document a semantic context-repair phenomenon in factual steering outputs. Furthermore, we develop an automated activation-variance calibration method to construct universal blacklists of polyfunctional infrastructure neurons, showing that 71% of these concentrate in the final layer, and that excluding them (38% overlap with safety) yields a causally sufficient, syntax-pruned behavioral circuit that preserves steering efficacy. We demonstrate that this blacklist is a pre-training invariant, exhibiting 54% base-to-instruct transferability. We also propose and empirically validate Layer-Frozen Safety Fine-Tuning (LFSFT), showing that updating only the late-layer safety circuit (L24–L27) while keeping L0–L23 frozen preserves mathematical reasoning on GSM-8K (62% vs. 58% for full SFT), though we acknowledge learning rate mismatches as a potential confound in this capability comparison. Finally, we propose CAA collapse language profiles as a speculative diagnostic hypothesis for pre-training data distributions. Code and the steerable 1.5B model weights are released at https://huggingface.co/kridaydave/Qwen2.5-1.5B-LFSFT.
+We apply Contrastive Neuron Attribution (CNA) to systematically locate, analyze, and steer safety refusal, sycophancy, and factual recall circuits across large language models spanning two architectures (Qwen2.5, Phi-3) and multiple parameter scales (0.5B, 1.5B, 3B, and 7B). Our findings suggest a preliminary scaling trend for safety bypass thresholds ($k^*$), though we explicitly qualify this with a note on the low sample size ($df=1$) and the inherent risk of curve-fitting on a four-point regression. While safety bypass requires the ablation of only $\approx 100$ neurons in a 0.5B model (using a borderline car-entry prompt), $\approx 200$ in a 1.5B model, $\approx 1500$ in a 3B model, and $\approx 2500$ in a 7B model under manual audit, we reframe the scaling regression strictly as a descriptive empirical summary of these observed thresholds rather than a universal scaling law. This scaling appears to be driven by circuit density — larger models concentrate the same behavior into proportionally more neurons within the same final-layer window — rather than by independent redundant circuits. We establish that behavioral circuits universally peak at 96–97% model depth regardless of architecture or scale. However, we qualify our sycophancy results: due to baseline floor effects, causal verification of sycophancy circuit steering was not possible at larger scales (7B). We demonstrate that CNA maintains generation coherence where Contrastive Activation Addition (CAA) degenerates. Additionally, we introduce signed logit-diff attribution for factual recall, fixing a directional bug in prior implementations, and document a semantic context-repair phenomenon in factual steering outputs. Furthermore, we develop an automated activation-variance calibration method to construct universal blacklists of polyfunctional infrastructure neurons, showing that 71% of these concentrate in the final layer, and that excluding them (38% overlap with safety) yields a causally sufficient, syntax-pruned behavioral circuit that preserves steering efficacy. We demonstrate that this blacklist is a pre-training invariant, exhibiting 54% base-to-instruct transferability. We also propose and empirically validate Layer-Frozen Safety Fine-Tuning (LFSFT), showing that updating only the late-layer safety circuit (L24–L27) while keeping L0–L23 frozen preserves mathematical reasoning on GSM-8K (62% vs. 58% for full SFT), though we acknowledge learning rate mismatches as a potential confound in this capability comparison. Finally, we propose CAA collapse language profiles as a speculative diagnostic hypothesis for pre-training data distributions. Code and the steerable 1.5B model weights are released at https://huggingface.co/kridaydave/Qwen2.5-1.5B-LFSFT.
+
+---
+
+> ╔══════════════════════════════════════════════════════════════════════════════╗
+> ║                     ★  CRITICAL LIMITATIONS — READ FIRST  ★                ║
+> ╠══════════════════════════════════════════════════════════════════════════════╣
+> ║                                                                              ║
+> ║  ⚠  SCALING LAW (n=4, df=1). The central k* power-law fit uses exactly       ║
+> ║     four model sizes (0.5B, 1.5B, 3B, 7B) with two free exponents. An        ║
+> ║     R²=0.922 on 4 data points is near-inevitable curve-fitting, not           ║
+> ║     evidence of a robust scaling law. Extrapolations to 72B produce a         ║
+> ║     4-order-of-magnitude range (k*≈69 to k*≈124,511) depending on the         ║
+> ║     null hypothesis. These are speculative bounding cases per Section 4.2.3.  ║
+> ║                                                                              ║
+> ║  ⚠  BYPASS THRESHOLDS ARE QUALITATIVE. "Refusal dissolves" is a               ║
+> ║     manual judgment by the research team with no inter-rater reliability      ║
+> ║     rubric, no formal bypass definition, and no confidence intervals          ║
+> ║     on threshold values (see Appendix A for a partial bootstrap CI).          ║
+> ║     The 0.5B model's non-refusal on the primary prompt (requiring a           ║
+> ║     prompt substitution) is an ad-hoc confound.                               ║
+> ║                                                                              ║
+> ║  ⚠  CONTRASTIVE PROMPT SET (n=5). Five contrastive pairs is a small           ║
+> ║     set for circuit characterization. Generalization tests (Table 3)          ║
+> ║     reveal significant non-generalization (fails on dangerous gas,            ║
+> ║     padlock prompts), undermining robustness claims.                          ║
+> ║                                                                              ║
+> ║  ⚠  NO RANDOM ABLATION BASELINE in current experiments. Without               ║
+> ║     comparing CNA ablation to random neuron ablation at equivalent k,         ║
+> ║     we cannot confirm that the specific CNA-identified neurons matter         ║
+> ║     rather than any ~200-neuron set in the final layers. (Preliminary         ║
+> ║     post-hoc analysis on 1.5B suggests CNA reduces refusal 20-60% more        ║
+> ║     than random; see Appendix B.)                                            ║
+> ║                                                                              ║
+> ║  ⚠  LFSFT LR CONFOUND. The LFSFT and control SFT runs used different          ║
+> ║     learning rates (5×10⁻⁵ vs 2×10⁻⁵). The GSM-8K capability gap              ║
+> ║     (62% vs 58%) may be partially or entirely due to this mismatch.           ║
+> ║                                                                              ║
+> ║  ⚠  7B CONSTRAINT. The 7B CNA ablation sweep (Section 4.2.2) ran in a         ║
+> ║     single forward pass due to GPU OOM on T4 (16GB). The k*≈2500 value        ║
+> ║     is a single manual estimate, not a sweep with confidence bounds.          ║
+> ║                                                                              ║
+> ║  ⚠  CAA COLLAPSE DIAGNOSTIC. The claim that CAA collapse patterns encode      ║
+> ║     training distribution fingerprints is an unvalidated hypothesis.          ║
+> ║     It has not been tested on models with undisclosed training data.          ║
+> ║                                                                              ║
+> ╚══════════════════════════════════════════════════════════════════════════════╝
 
 ---
 
@@ -296,8 +342,6 @@ We construct a sycophancy discovery dataset comprising 5 sycophancy-eliciting pr
 
 **Causal Verification Gap.** We explicitly note a causal validation bottleneck: because larger models (7B and 3.8B) did not display sycophantic behavior on our test prompt at baseline, CNA ablation ($m=0.0$) could not demonstrate behavioral change. The sycophancy circuit at these scales is structurally located via contrastive attribution, but its causal role in behavior control remains unverified. We call on future research to construct more complex, cognitive sycophancy-eliciting benchmarks (e.g., subtle political or academic biases) that trick 7B+ baselines, allowing full functional verification of the scaling properties of sycophancy circuits.
 
-**Provisional Nature of Behavioral Density Contrast.** While the safety circuit in Qwen 7B requires $2000+$ neurons for bypass, the sycophancy circuit saturates at $\approx 200$ significant neurons. This suggests that safety circuits are denser than sycophancy circuits. However, because the larger models did not exhibit sycophancy at baseline on the test prompt, we could not evaluate the causal functionality of the discovered circuits at these scales (only their structural existence). Consequently, this behavioral density contrast claim must be treated as **preliminary and provisional**, subject to broader behavioral verification using prompts that trigger baseline sycophancy at all scales.
-
 ---
 
 ## 6. Experiment 3: Factual Belief Steering & Context-Repair
@@ -455,11 +499,15 @@ To evaluate the LFSFT training paradigm, we fine-tuned two variants of `Qwen/Qwe
 1. **LFSFT Model**: Froze layers L0–L23, updating only L24–L27 (with a learning rate of $5 \times 10^{-5}$).
 2. **Control Model**: Standard Full SFT updating all layers L0–L27 (with a learning rate of $2 \times 10^{-5}$).
 
-> [!CAUTION]
-> **CRITICAL EXPERIMENTAL CONFOUND: LEARNING RATE MISMATCH**
-> The two training runs were executed with different learning rates ($5 \times 10^{-5}$ for LFSFT vs. $2 \times 10^{-5}$ for Control). This learning rate mismatch represents a severe experimental confound. Consequently, the observed downstream capability preservation (the 4.0% absolute GSM-8K gap) and the alignment strength variations could be partially or wholly explained by this hyperparameter difference rather than the frozen-layer structure alone. Future matched-learning-rate controls are strictly required to isolate the causal impact of frozen layer parameters.
+#### 9.2.2. Preliminary Capability Comparison, Confounded by LR Mismatch — Matched Controls Pending
 
-We evaluated downstream capability retention and alignment strength across multiple benchmarks (Table 10):
+We evaluated downstream capability retention across MMLU, GSM-8K, and HumanEval. However, we explicitly flag a critical experimental confound: the two training runs were executed with different learning rates ($5 \times 10^{-5}$ for LFSFT vs. $2 \times 10^{-5}$ for Control). This learning rate mismatch represents a severe confound, meaning the observed performance gaps could be partially or wholly driven by this hyperparameter difference rather than the frozen-layer structure alone.
+
+> [!CAUTION]
+> **CRITICAL EXPERIMENTAL CONFOUND & HARDWARE LIMITATION**
+> A matched learning rate sweep was not feasible within the hardware and compute budget of this study (executed entirely on standard single-accelerator Tesla T4 allocations) and is reserved for future work. Consequently, the following quantitative comparisons are presented as preliminary and descriptive, with matched-learning-rate controls pending. Future matched-learning-rate controls are strictly required to isolate the causal impact of frozen layer parameters.
+
+We evaluated downstream capability retention and alignment strength across multiple benchmarks:
 
 | Benchmark | Metric / Config | Control (Full SFT) | LFSFT (Layer-Frozen) | Base (Pre-trained) |
 |---|---|---|---|---|
@@ -505,7 +553,7 @@ The following table documents the behavior of the LFSFT and Control models acros
 > **HIGH NON-MONOTONICITY AND POLICY INSTABILITY**
 > Unlike the clean monotonic decay observed in fully converged instruction-tuned models, both models exhibit extreme non-monotonicity across the sweep, fluctuating between 0% and 60% refusal. Rather than indicating robust alignment, this structural instability is a direct consequence of the brief training period (3 epochs) on raw base checkpoints, yielding under-converged policy weight updates and noisy circuit representations. It is impossible to draw strong conclusions about absolute safety resilience from this noisy profile. However, the LFSFT model retains safety behaviors much longer across the sweep (only collapsing to 0% at $k=500$ and recovering at higher thresholds) compared to the Control model which collapses immediately at $k=50$ and remains at 0% across most of the sweep, demonstrating a significantly more resilient safety alignment structure.
 
-#### 9.2.2. Qualitative Case Studies: LFSFT vs. Control Completions
+#### 9.2.3. Qualitative Case Studies: LFSFT vs. Control Completions
 
 To demonstrate the structural divergence in how both models generate completions under varying levels of neuron ablation, we highlight two critical qualitative prompt cases extracted directly from the empirical logs at $k=0$ (baseline) and under ablation.
 
