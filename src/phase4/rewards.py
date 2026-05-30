@@ -165,58 +165,52 @@ def p_grpo_format_reward_fn(
 
 def step_grpo_reward_fn(prompts, completions, target_answer, **kwargs) -> list[float]:
     """
-    Step-GRPO Decaying Reward.
-    If the answer is correct, applies an exponential decay based on the number
-    of cognitive transition steps (tokens like 'Wait', 'Hmm') inside the monologue.
-    Applies multi-block penalty and handles unclosed tag fallback.
-    R_j = max(0.0, gamma^steps - block_penalty) * 𝟙[correct]
+    Step-GRPO Decaying Reward based on Monologue Word Count to prevent vocabulary evasion.
+    Applies a 100-word grace window to give the model "thinking space" for complex math,
+    followed by a mild 0.996^(words-100) decay to suppress extreme verbosity.
+    Multi-block tag exploits are penalized linearly by 0.5 per extra block.
+    Zeroes out if the math answer is incorrect.
     """
     rewards = []
-    gamma = 0.99
-    # Transition tokens indicating a new step/reasoning transition
-    transition_tokens = ["wait", "hmm", "but", "thinking", "actually", "let me check"]
-
+    
     for comp, target in zip(completions, target_answer):
         comp_text = get_completion_text(comp)
-
         extracted = extract_xml_answer(comp_text)
         target_clean = target.strip().replace(",", "")
         is_correct = extracted and is_mathematically_equivalent(extracted, target_clean)
-
+        
         if not is_correct:
             rewards.append(0.0)
             continue
-
-        # 1. Capture all completed think blocks globally
+            
+        # 1. Extract thinking monologue content
         think_blocks = re.findall(r"<think>(.*?)</think>", comp_text, re.DOTALL)
-        think_content_list = [block.lower() for block in think_blocks]
-
-        # 2. Fallback for unclosed think tag: extract everything after the last <think>
         num_start = comp_text.count("<think>")
-        num_end = comp_text.count("</think>")
-        if num_start > 0 and num_end == 0:
-            unclosed_monologue = comp_text.split("<think>")[-1].lower()
-            think_content_list.append(unclosed_monologue)
-
-        # Fix: Count cognitive transition tokens globally across the entire completion text
-        # to prevent the model from escaping penalty by placing transition words outside <think> tags.
-        global_content = comp_text.lower()
-
-        # 3. Count occurrence of cognitive transition tokens globally
-        steps = 0
-        for token in transition_tokens:
-            steps += global_content.count(token)
-
-        # 4. Multi-block penalty calculation: Increase penalty to 0.5 per extra block
-        # to completely eliminate the mathematical arbitrage of opening multiple think blocks.
+        
+        monologue_content = ""
+        if think_blocks:
+            monologue_content = think_blocks[0]
+        elif num_start > 0:
+            # Fallback for unclosed tag
+            monologue_content = comp_text.split("<think>")[-1]
+            
+        # 2. Count actual words inside the monologue
+        words = len(monologue_content.split())
+        
+        # 3. Apply 100-word grace window + mild 0.996 decay
+        if words <= 100:
+            conciseness_decay = 1.0
+        else:
+            conciseness_decay = 0.996 ** (words - 100)
+            
+        # 4. Multi-block penalty (arbitrage prevention)
         block_penalty = 0.0
         if num_start > 1:
             block_penalty = 0.5 * (num_start - 1)
-
-        # Calculate decayed reward and apply block penalty
-        decayed_reward = max(0.0, float(gamma**steps) - block_penalty)
+            
+        decayed_reward = max(0.0, conciseness_decay - block_penalty)
         rewards.append(decayed_reward)
-
+        
     return rewards
 
 
@@ -227,26 +221,26 @@ def tag_spam_penalty_fn(prompts, completions, **kwargs) -> list[float]:
     """Aggressive penalty for ANY tag that is not <think> or </think>.
     Catches HTML tags, digit tags (<1>, <60>), step tags (<step1>),
     number-word tags (<one>), and arbitrary invented tags.
-    Returns -0.3 per unique bad tag type, capped at -1.5."""
+    Returns -0.3 per bad tag occurrence, capped at -1.5."""
     penalties = []
-    tag_pattern = re.compile(r"</?([a-zA-Z][a-zA-Z0-9_]*)>")
-    digit_tag_pattern = re.compile(r"</?\d+>")
+    # Pattern matches standard and custom XML tags (including hyphens, dots, colons, and digits)
+    tag_pattern = re.compile(r"</?([a-zA-Z0-9_\-.:]+)>")
 
     for comp in completions:
         comp_text = get_completion_text(comp)
+        bad_tag_count = 0
         bad_tag_types = set()
 
         for match in tag_pattern.finditer(comp_text):
             tag_name = match.group(1).lower()
             if tag_name not in _TAG_WHITELIST:
                 bad_tag_types.add(tag_name)
+                bad_tag_count += 1
 
-        if digit_tag_pattern.search(comp_text):
-            bad_tag_types.add("__digit__")
-
-        if bad_tag_types:
-            penalties.append(max(-1.5, -0.3 * len(bad_tag_types)))
+        if bad_tag_count > 0:
+            penalties.append(max(-1.5, -0.3 * bad_tag_count))
         else:
             penalties.append(0.0)
+
     return penalties
 

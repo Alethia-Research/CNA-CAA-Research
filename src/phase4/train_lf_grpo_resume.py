@@ -510,11 +510,11 @@ def run_retraining(
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Resume LF-GRPO training using loophole-free rewards.")
-    parser.add_argument("--resume_from", type=str, default="/content/grpo_cot_output/checkpoint-100",
-                        help="Path to previous checkpoint directory or zip file to resume from")
-    parser.add_argument("--max_steps", type=int, default=100, help="Number of steps to train")
-    parser.add_argument("--output_dir", type=str, default="./grpo_cot_resumed", help="Output directory")
-    parser.add_argument("--save_steps", type=int, default=50, help="Checkpoint save interval")
+    parser.add_argument("--resume_from", type=str, default="kridaydave/Qwen-1.5B-LFGRPO-OPTIM",
+                        help="Path to previous checkpoint directory, Hugging Face repo, or zip file to resume from")
+    parser.add_argument("--max_steps", type=int, default=300, help="Number of steps to train")
+    parser.add_argument("--output_dir", type=str, default="./grpo_cot_resumed_final", help="Output directory")
+    parser.add_argument("--save_steps", type=int, default=100, help="Checkpoint save interval")
     
     args, _ = parser.parse_known_args()
     
