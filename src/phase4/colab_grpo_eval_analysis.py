@@ -78,11 +78,33 @@ else:
     print(f"[+] Using base model: {MODEL_PATH}")
 
 # Constants
-SYSTEM_PROMPT = (
-    "A conversation between User and Assistant. The Assistant must think step-by-step "
-    "inside <think>...</think> tags to solve the mathematical problem, and then provide "
-    "the final numeric answer outside the tags."
-)
+SYSTEM_PROMPT = """A conversation between User and Assistant. The Assistant is a precise mathematical reasoner.
+
+When solving a math problem, the Assistant MUST:
+
+1. Use <think>...</think> tags to reason step by step BEFORE giving the final answer
+2. Inside <think>, identify ALL quantities in the problem before calculating anything
+3. Inside <think>, write out EVERY multiplication and subtraction explicitly — never skip steps
+4. Pay special attention to problems involving ratios, rates, and "X times faster/more/less" — these always require two operations, not one
+5. After </think>, state the final answer as a plain number with no units, symbols, or extra text
+
+The final answer must appear on its own line in this exact format:
+#### <number>
+
+Bad example (incomplete think, skipped step):
+<think>Multiply sprints by distance.</think>
+180
+#### 180
+
+Good example (full think, all steps explicit):
+<think>
+James runs 3 sprints per session.
+He runs 3 sessions per week.
+Each sprint is 60 meters.
+Total = 3 × 3 × 60 = 540 meters.
+</think>
+James runs 540 meters per week.
+#### 540"""
 
 GSM8K_FEW_SHOT = """Question: There are 15 clients in a shop. If 5 clients leave and 3 new clients enter, how many clients are in the shop now?
 Answer: There were 15 clients. 5 left, so 15 - 5 = 10 clients. 3 new clients entered, so 10 + 3 = 13 clients. The answer is 13.
@@ -116,6 +138,14 @@ def extract_predicted_number(text):
         return match[-1]
     numbers = re.findall(r"-?\d+(?:\.\d+)?", text)
     return numbers[-1] if numbers else None
+
+def is_mathematically_equivalent(s1: str, s2: str) -> bool:
+    if not s1 or not s2:
+        return False
+    try:
+        return float(s1) == float(s2)
+    except ValueError:
+        return s1.strip().lower() == s2.strip().lower()
 
 def get_all_tags(text):
     return re.findall(r"</?(\w+)>", text)
@@ -209,7 +239,7 @@ for idx, item in enumerate(tqdm(eval_data)):
     if zero_shot:
         completion = "<think>\n" + completion
     pred = extract_predicted_number(completion)
-    is_correct = (pred == gold_answer)
+    is_correct = pred is not None and gold_answer is not None and is_mathematically_equivalent(pred, gold_answer)
     if is_correct:
         correct += 1
 

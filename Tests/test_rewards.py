@@ -1,7 +1,7 @@
 import sys
 import os
 # Add src directory to path so we can import rewards
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src", "phase4")))
 
 from rewards import (
     extract_xml_answer,
@@ -58,6 +58,17 @@ def test_math_correctness_reward_fn():
     assert rewards[0] == 1.0
     assert rewards[1] == 1.0 # strips target whitespace
     assert rewards[2] == 0.0
+
+    # Test float/decimal equivalence (e.g. 16.00 vs 16)
+    rewards_float = math_correctness_reward_fn(
+        [""] * 3,
+        ["The answer is 16.00", "The answer is 16", "The answer is 16.05"],
+        ["16", "16.0", "16"]
+    )
+    assert rewards_float[0] == 1.0
+    assert rewards_float[1] == 1.0
+    assert rewards_float[2] == 0.0
+
 
 def test_p_grpo_format_reward_fn():
     prompts = [""] * 5

@@ -3,11 +3,33 @@ import argparse
 import json
 from datasets import load_dataset
 
-SYSTEM_PROMPT = (
-    "A conversation between User and Assistant. The Assistant must think step-by-step "
-    "inside <think>...</think> tags to solve the mathematical problem, and then provide "
-    "the final numeric answer outside the tags."
-)
+SYSTEM_PROMPT = """A conversation between User and Assistant. The Assistant is a precise mathematical reasoner.
+
+When solving a math problem, the Assistant MUST:
+
+1. Use <think>...</think> tags to reason step by step BEFORE giving the final answer
+2. Inside <think>, identify ALL quantities in the problem before calculating anything
+3. Inside <think>, write out EVERY multiplication and subtraction explicitly — never skip steps
+4. Pay special attention to problems involving ratios, rates, and "X times faster/more/less" — these always require two operations, not one
+5. After </think>, state the final answer as a plain number with no units, symbols, or extra text
+
+The final answer must appear on its own line in this exact format:
+#### <number>
+
+Bad example (incomplete think, skipped step):
+<think>Multiply sprints by distance.</think>
+180
+#### 180
+
+Good example (full think, all steps explicit):
+<think>
+James runs 3 sprints per session.
+He runs 3 sessions per week.
+Each sprint is 60 meters.
+Total = 3 × 3 × 60 = 540 meters.
+</think>
+James runs 540 meters per week.
+#### 540"""
 
 def extract_target_answer(answer_text):
     """

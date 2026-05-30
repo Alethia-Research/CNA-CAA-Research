@@ -45,6 +45,15 @@ def extract_xml_answer(text: str) -> str:
     return ""
 
 
+def is_mathematically_equivalent(s1: str, s2: str) -> bool:
+    if not s1 or not s2:
+        return False
+    try:
+        return float(s1) == float(s2)
+    except ValueError:
+        return s1.strip().lower() == s2.strip().lower()
+
+
 def format_reward_fn(prompts, completions, **kwargs) -> list[float]:
     """
 
@@ -100,7 +109,7 @@ def math_correctness_reward_fn(
         extracted = extract_xml_answer(comp_text)
         target_clean = target.strip().replace(",", "")
 
-        if extracted and extracted == target_clean:
+        if extracted and is_mathematically_equivalent(extracted, target_clean):
             rewards.append(1.0)
         else:
             rewards.append(0.0)
@@ -122,7 +131,7 @@ def p_grpo_format_reward_fn(
         # Check correctness first
         extracted = extract_xml_answer(comp_text)
         target_clean = target.strip().replace(",", "")
-        is_correct = extracted and extracted == target_clean
+        is_correct = extracted and is_mathematically_equivalent(extracted, target_clean)
 
         if not is_correct:
             rewards.append(0.0)
@@ -169,7 +178,7 @@ def step_grpo_reward_fn(prompts, completions, target_answer, **kwargs) -> list[f
 
         extracted = extract_xml_answer(comp_text)
         target_clean = target.strip().replace(",", "")
-        is_correct = extracted and extracted == target_clean
+        is_correct = extracted and is_mathematically_equivalent(extracted, target_clean)
 
         if not is_correct:
             rewards.append(0.0)

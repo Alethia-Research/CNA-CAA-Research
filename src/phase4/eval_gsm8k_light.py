@@ -23,10 +23,20 @@ import json
 import torch
 from datasets import load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
+
+# Dynamic hotpatch to bypass PEFT import check crash for old torchao versions
+try:
+    import peft.import_utils as _piu
+    _piu.is_torchao_available = lambda: False
+except Exception:
+    pass
+
 from peft import PeftModel
 from tqdm import tqdm
+from rewards import is_mathematically_equivalent
 
 # ==========================================
+
 # CONFIGURATION
 # ==========================================
 # Standard GSM8K few-shot examples with Chain-of-Thought reasoning
@@ -167,11 +177,33 @@ def evaluate_gsm8k(model_path, device="cuda", limit_samples=50, zero_shot=False)
         
         if zero_shot:
             # Build zero-shot reasoning prompt using ChatML and target system prompt
-            SYSTEM_PROMPT = (
-                "A conversation between User and Assistant. The Assistant must think step-by-step "
-                "inside <think>...</think> tags to solve the mathematical problem, and then provide "
-                "the final numeric answer outside the tags."
-            )
+            SYSTEM_PROMPT = """A conversation between User and Assistant. The Assistant is a precise mathematical reasoner.
+
+When solving a math problem, the Assistant MUST:
+
+1. Use <think>...</think> tags to reason step by step BEFORE giving the final answer
+2. Inside <think>, identify ALL quantities in the problem before calculating anything
+3. Inside <think>, write out EVERY multiplication and subtraction explicitly — never skip steps
+4. Pay special attention to problems involving ratios, rates, and "X times faster/more/less" — these always require two operations, not one
+5. After </think>, state the final answer as a plain number with no units, symbols, or extra text
+
+The final answer must appear on its own line in this exact format:
+#### <number>
+
+Bad example (incomplete think, skipped step):
+<think>Multiply sprints by distance.</think>
+180
+#### 180
+
+Good example (full think, all steps explicit):
+<think>
+James runs 3 sprints per session.
+He runs 3 sessions per week.
+Each sprint is 60 meters.
+Total = 3 × 3 × 60 = 540 meters.
+</think>
+James runs 540 meters per week.
+#### 540"""
             messages = [
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": question}
@@ -182,6 +214,8 @@ def evaluate_gsm8k(model_path, device="cuda", limit_samples=50, zero_shot=False)
             # Fallback guard to prevent empty prompt tokenization crash
             if not prompt:
                 prompt = f"<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n<|im_start|>user\n{question}<|im_end|>\n<|im_start|>assistant\n"
+            # Pre-fill assistant thinking monologue starter to lock the model into the format
+            prompt += "<think>\n"
         else:
             # Build standard few-shot chain of thought prompt
             prompt = GSM8K_FEW_SHOT + f"Question: {question}\nAnswer:"
@@ -207,10 +241,17 @@ def evaluate_gsm8k(model_path, device="cuda", limit_samples=50, zero_shot=False)
                 do_sample=False
             )
             
-        generated_answer = tokenizer.decode(output_ids[0][input_len:], skip_special_tokens=True).strip()
+        generated_answer = tokenizer.decode(output_ids[0][input_len:], skip_special_tokens=False).strip()
+        # Manually clean standard ChatML markers while keeping think tags
+        for token in ["<|im_end|>", "<|im_start|>", "<|endoftext|>"]:
+            generated_answer = generated_answer.replace(token, "")
+        generated_answer = generated_answer.strip()
+        if zero_shot:
+            generated_answer = "<think>\n" + generated_answer
+        
         pred_val = extract_predicted_number(generated_answer)
         
-        is_correct = (pred_val == gold_answer)
+        is_correct = pred_val is not None and gold_answer is not None and is_mathematically_equivalent(pred_val, gold_answer)
         if is_correct:
             correct += 1
         total += 1
@@ -234,7 +275,6 @@ def evaluate_gsm8k(model_path, device="cuda", limit_samples=50, zero_shot=False)
         })
 
     # Save all outputs to JSONL for tag diversity analysis
-    import json
     output_path = model_path.rstrip("/").replace("/", "_") + "_eval_outputs.jsonl"
     if os.path.exists("data"):
         output_path = os.path.join("data", output_path)

@@ -60,11 +60,33 @@ from trl import GRPOConfig, GRPOTrainer
 # =====================================================================
 # 1. INLINE OPENAI DATASET PREPARATION
 # =====================================================================
-SYSTEM_PROMPT = (
-    "A conversation between User and Assistant. The Assistant must think step-by-step "
-    "inside <think>...</think> tags to solve the mathematical problem, and then provide "
-    "the final numeric answer outside the tags."
-)
+SYSTEM_PROMPT = """A conversation between User and Assistant. The Assistant is a precise mathematical reasoner.
+
+When solving a math problem, the Assistant MUST:
+
+1. Use <think>...</think> tags to reason step by step BEFORE giving the final answer
+2. Inside <think>, identify ALL quantities in the problem before calculating anything
+3. Inside <think>, write out EVERY multiplication and subtraction explicitly — never skip steps
+4. Pay special attention to problems involving ratios, rates, and "X times faster/more/less" — these always require two operations, not one
+5. After </think>, state the final answer as a plain number with no units, symbols, or extra text
+
+The final answer must appear on its own line in this exact format:
+#### <number>
+
+Bad example (incomplete think, skipped step):
+<think>Multiply sprints by distance.</think>
+180
+#### 180
+
+Good example (full think, all steps explicit):
+<think>
+James runs 3 sprints per session.
+He runs 3 sessions per week.
+Each sprint is 60 meters.
+Total = 3 × 3 × 60 = 540 meters.
+</think>
+James runs 540 meters per week.
+#### 540"""
 
 def prepare_gsm8k_dataset(limit=1000, output_dir="data"):
     os.makedirs(output_dir, exist_ok=True)
@@ -132,6 +154,14 @@ def extract_xml_answer(text: str) -> str:
         return numbers[-1]
     return ""
 
+def is_mathematically_equivalent(s1: str, s2: str) -> bool:
+    if not s1 or not s2:
+        return False
+    try:
+        return float(s1) == float(s2)
+    except ValueError:
+        return s1.strip().lower() == s2.strip().lower()
+
 def format_reward_fn(prompts, completions, **kwargs) -> list[float]:
     rewards = []
     for comp in completions:
@@ -162,7 +192,7 @@ def math_correctness_reward_fn(prompts, completions, target_answer, **kwargs) ->
         comp_text = get_completion_text(comp)
         extracted = extract_xml_answer(comp_text)
         target_clean = target.strip().replace(",", "")
-        if extracted and extracted == target_clean:
+        if extracted and is_mathematically_equivalent(extracted, target_clean):
             rewards.append(1.0)
         else:
             rewards.append(0.0)
@@ -174,7 +204,7 @@ def p_grpo_format_reward_fn(prompts, completions, target_answer, **kwargs) -> li
         comp_text = get_completion_text(comp)
         extracted = extract_xml_answer(comp_text)
         target_clean = target.strip().replace(",", "")
-        is_correct = extracted and extracted == target_clean
+        is_correct = extracted and is_mathematically_equivalent(extracted, target_clean)
         
         if not is_correct:
             rewards.append(0.0)
@@ -208,7 +238,7 @@ def step_grpo_reward_fn(prompts, completions, target_answer, **kwargs) -> list[f
         comp_text = get_completion_text(comp)
         extracted = extract_xml_answer(comp_text)
         target_clean = target.strip().replace(",", "")
-        is_correct = extracted and extracted == target_clean
+        is_correct = extracted and is_mathematically_equivalent(extracted, target_clean)
         
         if not is_correct:
             rewards.append(0.0)
