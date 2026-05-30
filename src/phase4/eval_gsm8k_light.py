@@ -275,12 +275,19 @@ James runs 540 meters per week.
         })
 
     # Save all outputs to JSONL for tag diversity analysis
-    output_path = model_path.rstrip("/").replace("/", "_") + "_eval_outputs.jsonl"
-    if os.path.exists("data"):
-        output_path = os.path.join("data", output_path)
-    with open(output_path, "w") as f:
+    # Normalize slashes and clean up leading relative path dots to prevent hidden files
+    clean_name = model_path.replace("\\", "/").rstrip("/")
+    clean_name = re.sub(r"^\.+/", "", clean_name)
+    clean_name = clean_name.replace("/", "_")
+    output_filename = f"{clean_name}_eval_outputs.jsonl"
+    
+    out_dir = "data" if os.path.exists("data") else "."
+    output_path = os.path.join(out_dir, output_filename)
+    os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+    
+    with open(output_path, "w", encoding="utf-8") as f:
         for o in outputs:
-            f.write(json.dumps(o) + "\n")
+            f.write(json.dumps(o, ensure_ascii=False) + "\n")
     print(f"[+] Saved {total} eval outputs to {output_path}")
 
     acc = correct / total if total > 0 else 0.0

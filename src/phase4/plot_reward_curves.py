@@ -18,6 +18,18 @@ def parse_trainer_states(output_dir):
     # Filter only valid existing files
     state_files = [f for f in state_files if os.path.isfile(f)]
     
+    # Fallback to direct training metrics JSON if no trainer_state.json exists
+    metrics_json = os.path.join(output_dir, "grpo_training_metrics.json")
+    if not state_files and os.path.isfile(metrics_json):
+        try:
+            print(f"[*] Found training metrics file: {metrics_json}. Loading directly...")
+            with open(metrics_json, "r", encoding="utf-8") as f:
+                history = json.load(f)
+            print(f"[+] Loaded {len(history)} log entries directly from {metrics_json}")
+            return history
+        except Exception as e:
+            print(f"[-] Failed to load {metrics_json}: {e}")
+            
     if not state_files:
         print(f"[-] No trainer_state.json files found in {output_dir}")
         return []
@@ -112,10 +124,17 @@ def main():
 
     print(f"[*] Parsing logs using reward key: '{found_reward_key}' and std key: '{found_std_key}'")
 
-    for log in history:
+    for idx, log in enumerate(history):
         step = log.get("step")
+        if step is None:
+            # Reconstruct step based on log index or epoch
+            epoch = log.get("epoch", 0.0)
+            if epoch > 0:
+                step = int(epoch * 1875)  # Estimate step if possible, otherwise use index
+            else:
+                step = idx + 1
         # Ensure we have a valid step and at least the reward value
-        if step is not None and found_reward_key in log:
+        if found_reward_key in log:
             steps.append(step)
             rewards.append(float(log[found_reward_key]))
             if found_std_key and found_std_key in log:

@@ -575,10 +575,13 @@ def format_reward_fn(prompts, completions, **kwargs) -> list[float]:
 def is_mathematically_equivalent(s1: str, s2: str) -> bool:
     if not s1 or not s2:
         return False
+    # Clean commas to prevent float conversion crashes
+    s1_clean = s1.replace(",", "").strip()
+    s2_clean = s2.replace(",", "").strip()
     try:
-        return float(s1) == float(s2)
+        return float(s1_clean) == float(s2_clean)
     except ValueError:
-        return s1.strip().lower() == s2.strip().lower()
+        return s1_clean.lower() == s2_clean.lower()
 
 def math_correctness_reward_fn(prompts, completions, target_answer, **kwargs) -> list[float]:
     """Compares the extracted numerical answer with the target ground truth."""
@@ -665,10 +668,125 @@ def step_grpo_reward_fn(prompts, completions, target_answer, **kwargs) -> list[f
         
     return rewards
 
+def think_depth_reward_fn(prompts, completions, **kwargs) -> list[float]:
+    """Rewards multi-line structured reasoning inside <think> blocks.
+    Caps at 1.0 after 6 lines (GSM8K sweet spot is 3-6 steps)."""
+    rewards = []
+    for comp in completions:
+        comp_text = get_completion_text(comp)
+        think_blocks = re.findall(r"<think>(.*?)</think>", comp_text, re.DOTALL)
+        if not think_blocks:
+            rewards.append(0.0)
+            continue
+        lines = [l.strip() for l in think_blocks[0].split('\n') if l.strip()]
+        rewards.append(min(1.0, len(lines) / 6.0))
+    return rewards
+
+def quantity_inventory_reward_fn(prompts, completions, **kwargs) -> list[float]:
+    """Rewards explicitly listing quantities and showing computation steps.
+    Requires >=4 distinct numbers (filters out trivial problem echoing)."""
+    rewards = []
+    for comp in completions:
+        comp_text = get_completion_text(comp)
+        think_blocks = re.findall(r"<think>(.*?)</think>", comp_text, re.DOTALL)
+        if not think_blocks:
+            rewards.append(0.0)
+            continue
+        think_text = think_blocks[0]
+        numbers_found = re.findall(r'\d+', think_text)
+        has_explicit_steps = bool(re.search(
+            r'(total|sum|remaining|result|equals|=)\s*[:=]?\s*\d',
+            think_text.lower()
+        ))
+        has_multiple_quantities = len(set(numbers_found)) >= 4
+        score = 0.0
+        if has_multiple_quantities: score += 0.5
+        if has_explicit_steps: score += 0.5
+        rewards.append(score)
+    return rewards
+
+def final_format_reward_fn(prompts, completions, **kwargs) -> list[float]:
+    """Rewards the GSM8K #### <number> answer format specifically."""
+    rewards = []
+    for comp in completions:
+        comp_text = get_completion_text(comp)
+        if re.search(r'####\s*-?\d+(?:\.\d+)?', comp_text):
+            rewards.append(1.0)
+        else:
+            rewards.append(0.0)
+    return rewards
+
+# ── Tag-Spam Electrified Fence ──────────────────────────────────────────
+# Whitelisted tags: ONLY <think> and </think> are allowed.
+# Everything else gets punished — HTML, numbered, invented, all of it.
+_TAG_WHITELIST = frozenset(["think"])
+
+# Explicit HTML/web tags the model keeps inventing from its instruct pretraining
+_HTML_TAGS = frozenset([
+    "p", "br", "div", "span", "strong", "b", "i", "u", "em", "a", "img",
+    "ul", "ol", "li", "table", "tr", "td", "th", "thead", "tbody",
+    "h1", "h2", "h3", "h4", "h5", "h6", "pre", "code", "blockquote",
+    "hr", "nowiki", "sub", "sup", "small", "big", "center", "font",
+    "section", "article", "header", "footer", "nav", "main", "aside",
+    "details", "summary", "figure", "figcaption", "mark", "del", "ins",
+    "underline", "strikethrough", "abbr", "cite", "q", "kbd", "var",
+    "samp", "dfn", "ruby", "rt", "rp", "bdi", "bdo", "wbr",
+])
+
+# Number words the model uses as tags
+_NUMBER_WORDS = frozenset([
+    "zero", "one", "two", "three", "four", "five", "six", "seven",
+    "eight", "nine", "ten", "eleven", "twelve", "first", "second", "third",
+])
+
+def tag_spam_penalty_fn(prompts, completions, **kwargs) -> list[float]:
+    """Aggressive penalty for ANY tag that is not <think> or </think>.
+    Catches:
+      - HTML/web tags (<br>, <p>, <strong>, <li>, <div>, <ul>, ...)
+      - Digit tags (<1>, <2>, <60>, ...)
+      - Step/number-word tags (<step1>, <step2>, <one>, <two>, ...)
+      - Arbitrary invented tags (<calculate>, <result>, <finish>, <answer>, ...)
+    Penalty scales with violation count: -0.3 per unique bad tag type,
+    capped at -1.5 so it can nuke an otherwise-perfect reward."""
+    penalties = []
+    # Pattern matches both opening and closing XML-style tags
+    tag_pattern = re.compile(r"</?([a-zA-Z][a-zA-Z0-9_]*)>")
+    # Pattern matches pure digit tags like <1>, <60>, </3>
+    digit_tag_pattern = re.compile(r"</?\d+>")
+
+    for comp in completions:
+        comp_text = get_completion_text(comp)
+        bad_tag_count = 0
+        bad_tag_types = set()
+
+        # 1. Find all alpha-starting tags
+        for match in tag_pattern.finditer(comp_text):
+            tag_name = match.group(1).lower()
+            if tag_name in _TAG_WHITELIST:
+                continue
+            # It's a bad tag
+            bad_tag_types.add(tag_name)
+            bad_tag_count += 1
+
+        # 2. Find pure digit tags (<1>, <60>, etc.)
+        digit_hits = digit_tag_pattern.findall(comp_text)
+        bad_tag_count += len(digit_hits)
+        if digit_hits:
+            bad_tag_types.add("__digit__")
+
+        # 3. Score: -0.3 per unique bad tag type, floored at -1.5
+        if bad_tag_types:
+            penalty = max(-1.5, -0.3 * len(bad_tag_types))
+        else:
+            penalty = 0.0
+
+        penalties.append(penalty)
+    return penalties
+
 # Global step tracker for stage shifting
 current_step = 0
 
-def get_combined_reward_fn(mode="step-grpo", stage_steps=100):
+def get_combined_reward_fn(mode="step-grpo", stage_steps=100, is_resumed=False):
     """
     Combines formatting and correctness rewards and dynamically transitions
     the weights from format-priming (Stage 1) to correctness (Stage 2).
@@ -706,15 +824,31 @@ def get_combined_reward_fn(mode="step-grpo", stage_steps=100):
         else:
             c_rewards = math_correctness_reward_fn(prompts, completions, target_answer)
             
-        # 3. Two-stage weights transition
-        if current_step <= stage_steps:
-            w_format, w_correct = 1.0, 0.1
+        # 3. Auxiliary rewards
+        d_rewards = think_depth_reward_fn(prompts, completions)
+        i_rewards = quantity_inventory_reward_fn(prompts, completions)
+        ff_rewards = final_format_reward_fn(prompts, completions)
+
+        # 4. Tag spam penalty (electrified fence — always active, always punishing)
+        spam_penalties = tag_spam_penalty_fn(prompts, completions)
+
+        # 5. Three-stage weighting (spam penalty weight is constant across all stages)
+        w_spam = 1.0  # Additive (penalties are already negative)
+        effective_step = current_step + (100 if is_resumed else 0)
+        
+        if effective_step <= 20:
+            # Stage 1 — format boot camp
+            w_format, w_correct, w_depth, w_inventory, w_final = 1.0, 0.05, 0.5, 0.3, 0.5
+        elif effective_step <= stage_steps + 20:
+            # Stage 2 — correctness enters
+            w_format, w_correct, w_depth, w_inventory, w_final = 0.3, 1.0, 0.4, 0.3, 0.3
         else:
-            w_format, w_correct = 0.2, 1.0
+            # Stage 3 — correctness dominant
+            w_format, w_correct, w_depth, w_inventory, w_final = 0.1, 1.0, 0.2, 0.1, 0.2
             
         combined = []
-        for f, c in zip(f_rewards, c_rewards):
-            combined.append(w_format * f + w_correct * c)
+        for f, c, d, i, ff, sp in zip(f_rewards, c_rewards, d_rewards, i_rewards, ff_rewards, spam_penalties):
+            combined.append(w_format*f + w_correct*c + w_depth*d + w_inventory*i + w_final*ff + w_spam*sp)
         return combined
     return reward_fn
 
@@ -996,16 +1130,17 @@ James runs 540 meters per week.
     
     model = FastLanguageModel.get_peft_model(
         model=model,
-        r=32,
-        lora_alpha=32,
+        r=64,
+        lora_alpha=96,
         target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
         layers_to_transform=resolved_layers, # Freezes all other layers automatically
         use_gradient_checkpointing="unsloth"
     )
 
     if resume_adapter_from:
-        print(f"[*] Loading adapter weights from {resume_adapter_from}...")
-        model.load_adapter(resume_adapter_from, adapter_name="default")
+        abs_resume_path = os.path.abspath(resume_adapter_from)
+        print(f"[*] Loading adapter weights from {abs_resume_path}...")
+        model.load_adapter(abs_resume_path, adapter_name="default")
         print("[+] Adapter weights loaded — stage-1 weights restored, continuing from step 100.")
 
     # 5. Load Formatted Dataset
@@ -1024,8 +1159,8 @@ James runs 540 meters per week.
         per_device_train_batch_size=1,
         gradient_accumulation_steps=4,
         num_generations=num_generations,
-        max_prompt_length=512,
-        max_completion_length=384,
+        max_prompt_length=448,
+        max_completion_length=448,
         max_steps=max_steps,
         logging_steps=5,
         save_steps=save_steps,
@@ -1146,7 +1281,7 @@ James runs 540 meters per week.
     _trainer_kwargs = dict(
         model=model,
         processing_class=tokenizer,
-        reward_funcs=[get_combined_reward_fn(mode=mode, stage_steps=stage_steps)],
+        reward_funcs=[get_combined_reward_fn(mode=mode, stage_steps=stage_steps, is_resumed=bool(resume_adapter_from))],
         args=training_args,
         train_dataset=train_dataset,
         callbacks=[StepTrackerCallback(model), DriveUploadCallback(output_dir)]
@@ -1187,7 +1322,7 @@ James runs 540 meters per week.
 
             _llm_model = trainer.llm.llm_engine.model_executor.driver_worker.model_runner.model
             _orig_load_weights = _llm_model.load_weights
-            _lora_scale = 32.0 / 32.0  # lora_alpha / r
+            _lora_scale = 96.0 / 64.0  # lora_alpha / r — must match get_peft_model config
             _step_counter = [0]
             _PREFIXES = ("base_model.model.", "base_model.")
 
@@ -1239,6 +1374,24 @@ James runs 540 meters per week.
             import traceback as _tb
             _tb.print_exc()
 
+    # Custom LR schedule: warmup 10 → flat peak → gentle decay
+    import types
+    def custom_create_scheduler(self, num_training_steps: int, optimizer=None):
+        from torch.optim.lr_scheduler import LambdaLR
+        def lr_lambda(step: int):
+            if step < 10:
+                return float(step) / 10.0
+            elif step < 220:
+                return 1.0
+            elif step < max_steps:
+                return 1.0 - float(step - 220) / float(max_steps - 220)
+            else:
+                return 0.0
+        self.lr_scheduler = LambdaLR(self.optimizer if optimizer is None else optimizer, lr_lambda)
+        self._created_lr_scheduler = True
+        return self.lr_scheduler
+    trainer.create_scheduler = types.MethodType(custom_create_scheduler, trainer)
+
     # 7. Run LF-GRPO Training Loop
     print(f"[*] Launching LF-GRPO training loop for {max_steps} steps...")
     trainer.train()
@@ -1255,12 +1408,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run LF-GRPO 1000-Step Training Pipeline.")
     parser.add_argument("--model_name", type=str, default="unsloth/Qwen2.5-1.5B-Instruct", help="Base model")
     parser.add_argument("--mode", type=str, choices=["standard", "p-grpo", "step-grpo"], default="step-grpo", help="GRPO Mode")
-    parser.add_argument("--max_steps", type=int, default=1000, help="Max steps")
+    parser.add_argument("--max_steps", type=int, default=300, help="Max steps")
     parser.add_argument("--stage_steps", type=int, default=100, help="Stage 1 (format priming) steps")
     parser.add_argument("--learning_rate", type=float, default=1.5e-5, help="Learning rate")
     parser.add_argument("--layers_to_transform", type=str, default="last_4", help="Layers to adapt (comma-separated indices or 'last_4')")
     parser.add_argument("--output_dir", type=str, default="./grpo_cot_output", help="Output directory")
-    parser.add_argument("--save_steps", type=int, default=100, help="Checkpoint save interval")
+    parser.add_argument("--save_steps", type=int, default=50, help="Checkpoint save interval")
     parser.add_argument("--limit_train", type=int, default=None, help="Limit dataset size")
     parser.add_argument("--num_generations", type=int, default=4, help="Number of completions per prompt")
     parser.add_argument("--no_vllm", action="store_true", help="Disable vLLM")

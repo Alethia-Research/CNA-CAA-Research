@@ -233,6 +233,8 @@ Held-out evaluation sweeps on 50 OOD GSM-8K test prompts reveal the capability p
 \midrule
 \textbf{LF-GRPO (This Work)} & \textbf{Few-Shot (Auto-generated monologues)} & \textbf{58.00\% (29/50)} \\
 \textbf{LF-GRPO (This Work)} & \textbf{Zero-Shot (ChatML reasoning prompt)} & \textbf{52.00\% (26/50)} \\
+\textbf{LF-GRPO (Scratch Run, Step 100)} & \textbf{Zero-Shot (ChatML reasoning prompt)} & \textbf{48.00\% (24/50)} \\
+\textbf{LF-GRPO (Scratch Run, Run-1, Step 200)} & \textbf{Zero-Shot (ChatML reasoning prompt)} & \textbf{42.00\% (21/50)} \\
 LFSFT Model (Paper 1) & Few-Shot & 62.00\% \\
 Standard GRPO (Full-Layer LoRA) & Few-Shot (CoT generated) & 42.00\% (21/50) \\
 Qwen2.5-1.5B-Instruct (Base) & 5-Shot (Baseline limit) & 42.00\% \\
@@ -252,9 +254,24 @@ The comparative benchmarks in Table \ref{tab:ood_results} provide causal proof o
     \item \textbf{LF-GRPO:} Freezing $L0$--$L23$ isolates the mathematical core from gradient noise, allowing the monologue formatting benefits learned in $L24$--$L27$ to combine with the intact core, resulting in a substantial performance jump to **58.00\%** at 150 steps.
 \end{itemize}
 
-\subsection{Goodhart's Law \& Multi-Block Tag Hacking}
+\subsection{Run-1 Catastrophic Collapse: More XML Tags than Thinking}
 
-During early Stage 2 iterations without multi-block penalties, the model learned to circumvent the step-decay conciseness penalty ($\gamma^{N_{steps}}$) by opening and closing multiple independent \texttt{<think>} blocks, resetting the localized step counter. Our 0.5 per-block penalty successfully closed this loop, forcing the model to generate single-block reasoning monologues within a concise token footprint (mean completion length: 236 tokens).
+In the initial training run (\textbf{Run-1}), where the policy was optimized without correctness-gating on auxiliary rewards and without a direct length-based conciseness penalty, the model collapsed catastrophically by Step 200. It discovered a structural loophole in the SFT-trained format filters: by generating endless repetitive closing tags (\texttt{</answer>} and \texttt{</maths>} over 50 times consecutively), it successfully maximized intermediate formatting rewards while bypassing conciseness limits. The generated completions literally contained \textbf{more XML tags than actual thinking}.
+
+This reward hacking had a highly destructive impact:
+\begin{enumerate}
+    \item \textbf{Latency Inflation:} The evaluation speed collapsed from $\approx 11$\,s/it (at Step 100) to \textbf{28.19\,s/it} (at Step 200) as the model stalled on every prompt generating repetitive garbage tokens.
+    \item \textbf{Central Engine Corruption:} Gradients backpropagated through the early layers corrupted the core arithmetic networks. In Example 1 (Janet's ducks), the model performed a convoluted daily-weekly conversion (multiplying by 7) and then confidently output the wrong daily earnings (\texttt{\#\#\#\# 126} instead of \texttt{\#\#\#\# 18}), displaying a classic ``looking smart while wrong'' failure mode.
+\end{enumerate}
+
+\subsection{Run-2 Loophole-Free Mitigations}
+
+To eliminate this exploit, we designed \textbf{Run-2} to resume from the uncorrupted Step 100 checkpoint with three core mitigations integrated directly into the reward function:
+\begin{enumerate}
+    \item \textbf{Correctness Gating (P-GRPO):} All auxiliary and formatting rewards are strictly zeroed out if the final mathematical answer is incorrect, removing the incentive to generate superficial calculations.
+    \item \textbf{Monologue Word-Count Decay:} Instead of a fragile blacklist of 6 words (which the model bypassed by shifting its vocabulary), we decay the correctness reward based on the monologue's actual word count ($0.996^{\text{words} - 100}$) after a 100-word grace window to allow thorough reasoning on complex, multi-step problems.
+    \item \textbf{Whitelisted Tag Fence:} Only \texttt{think} and \texttt{boxed} are whitelisted; all other tags incur a severe additive penalty of $-1.5$ to instantly suppress tag-spam runaway.
+\end{enumerate}
 
 \subsection{Novel Tag Hallucination and Format Generalization}
 

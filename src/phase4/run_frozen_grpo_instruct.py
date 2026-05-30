@@ -92,9 +92,9 @@ def prepare_gsm8k_dataset(limit=1000, output_dir="data"):
     os.makedirs(output_dir, exist_ok=True)
     out_path = os.path.join(output_dir, "gsm8k_train_grpo.jsonl")
     
+    # Always regenerate the dataset to prevent training on stale prompts from previous runs.
     if os.path.exists(out_path):
-        print(f"[+] Verified active dataset cache at {out_path}")
-        return out_path
+        os.remove(out_path)
         
     print("[*] Loading OpenAI GSM8K from Hugging Face...")
     dataset = load_dataset("openai/gsm8k", "main", split="train")
@@ -157,10 +157,13 @@ def extract_xml_answer(text: str) -> str:
 def is_mathematically_equivalent(s1: str, s2: str) -> bool:
     if not s1 or not s2:
         return False
+    # Clean commas to prevent float conversion crashes
+    s1_clean = s1.replace(",", "").strip()
+    s2_clean = s2.replace(",", "").strip()
     try:
-        return float(s1) == float(s2)
+        return float(s1_clean) == float(s2_clean)
     except ValueError:
-        return s1.strip().lower() == s2.strip().lower()
+        return s1_clean.lower() == s2_clean.lower()
 
 def format_reward_fn(prompts, completions, **kwargs) -> list[float]:
     rewards = []
@@ -311,6 +314,50 @@ class StepTrackerCallback(TrainerCallback):
                 print("[+] VERIFICATION SUCCESS: 100% gradient insulation confirmed! All frozen layers have 0.0 gradient norm.")
             print("="*50 + "\n")
 
+class DriveUploadCallback(TrainerCallback):
+    """Mounts Google Drive and copies each checkpoint after it is saved."""
+
+    def __init__(self, output_dir, drive_dest=None):
+        super().__init__()
+        import shutil
+        self.output_dir = output_dir
+        _run = os.path.basename(os.path.abspath(output_dir))
+        self.drive_dest = drive_dest or f"/content/drive/MyDrive/grpo_checkpoints/{_run}"
+        self._mounted = False
+        self._try_mount()
+
+    def _try_mount(self):
+        try:
+            if os.path.ismount("/content/drive"):
+                self._mounted = True
+                os.makedirs(self.drive_dest, exist_ok=True)
+                print(f"[+] Drive already mounted → {self.drive_dest}")
+                return
+            from google.colab import drive as _gd
+            _gd.mount("/content/drive", force_remount=False)
+            self._mounted = True
+            os.makedirs(self.drive_dest, exist_ok=True)
+            print(f"[+] Drive mounted → {self.drive_dest}")
+        except Exception as _e:
+            print(f"[!] Drive mount failed ({_e}) — checkpoints local only.")
+
+    def on_save(self, args, state, control, **kwargs):
+        if not self._mounted:
+            return
+        try:
+            import shutil
+            ckpt_dir = os.path.join(self.output_dir, f"checkpoint-{state.global_step}")
+            if not os.path.isdir(ckpt_dir):
+                ckpt_dir = self.output_dir
+            zip_name = f"save_step_{state.global_step}"
+            zip_base = os.path.join(self.drive_dest, zip_name)
+            if os.path.exists(zip_base + ".zip"):
+                os.remove(zip_base + ".zip")
+            shutil.make_archive(zip_base, "zip", root_dir=ckpt_dir)
+            print(f"[+] Step {state.global_step} → {zip_name}.zip uploaded to Drive.")
+        except Exception as _e:
+            print(f"[!] Drive upload failed at step {state.global_step}: {_e}")
+
 def get_combined_reward_fn(mode="step-grpo", stage_steps=50):
     def reward_fn(prompts, completions, target_answer, **kwargs) -> list[float]:
         global current_step
@@ -348,8 +395,8 @@ def execute_frozen_grpo(model_name="unsloth/Qwen2.5-1.5B-Instruct"):
     print("VRAM constraints:   Optimized for Tesla T4 (16GB VRAM) Colocate Mode")
     print("="*70 + "\n")
 
-    # A. Dataset compilation
-    data_path = prepare_gsm8k_dataset(limit=1000, output_dir="data")
+    # A. Dataset compilation (limit=None trains on all 7473 examples)
+    data_path = prepare_gsm8k_dataset(limit=None, output_dir="data")
     train_dataset = load_dataset("json", data_files=data_path, split="train")
 
     # B. Load Model & Tokenizer
@@ -365,9 +412,9 @@ def execute_frozen_grpo(model_name="unsloth/Qwen2.5-1.5B-Instruct"):
     print("[*] Initializing FastLanguageModel in 4-bit...")
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name=model_name,
-        max_seq_length=896,
+        max_seq_length=1024,
         load_in_4bit=True,
-        fast_inference=has_vllm,
+        fast_inference=False,
         gpu_memory_utilization=0.95
     )
 
@@ -387,32 +434,103 @@ def execute_frozen_grpo(model_name="unsloth/Qwen2.5-1.5B-Instruct"):
     )
 
     # D. GRPO Configurations
-    training_args = GRPOConfig(
+    import inspect as _inspect
+    _grpo_params = set(_inspect.signature(GRPOConfig.__init__).parameters)
+
+    training_args_kwargs = dict(
         output_dir="./grpo_cot_output",
-        learning_rate=2e-5,
+        learning_rate=1e-5,
+        beta=0.0,  # Disable KL penalty to prevent reference model deepcopy / CUDA OOM
         per_device_train_batch_size=1,
         gradient_accumulation_steps=4,
         num_generations=4,
         max_prompt_length=512,
         max_completion_length=384,
-        max_steps=150,
-        use_vllm=has_vllm,
-        vllm_mode="colocate" if has_vllm else None,
+        max_steps=200,
         logging_steps=5,
         save_steps=50,
         optim="paged_adamw_8bit" if torch.cuda.is_available() else "adamw_torch",
         report_to="none"
     )
 
-    # E. Trainer Launch
-    trainer = GRPOTrainer(
+    if has_vllm and "use_vllm" in _grpo_params:
+        training_args_kwargs["use_vllm"] = True
+        if "vllm_device" in _grpo_params:
+            training_args_kwargs["vllm_device"] = "cuda:0"
+        _vllm_optional = {
+            "vllm_gpu_memory_utilization": 0.5,
+            "vllm_dtype": "float16",
+            "vllm_mode": "colocate",
+            "vllm_enforce_eager": True,
+        }
+        for k, v in _vllm_optional.items():
+            if k in _grpo_params:
+                training_args_kwargs[k] = v
+    elif "use_vllm" in _grpo_params:
+        training_args_kwargs["use_vllm"] = False
+
+    training_args = GRPOConfig(**training_args_kwargs)
+
+    # PEFT model attribute patches that GRPOTrainer expects
+    _trl_expected_attrs = {
+        "is_peft_model": True,
+        "peft_type": "LORA",
+        "active_adapters": ["default"]
+    }
+    for attr_name, default_val in _trl_expected_attrs.items():
+        if not hasattr(model, attr_name):
+            setattr(model, attr_name, default_val)
+
+    # Patch create_reference_model to avoid deepcopy / OOM
+    import trl.trainer.grpo_trainer as _grpo_mod
+    import trl.models.modeling_base as _tmb
+    _orig_create_ref = getattr(_grpo_mod, "create_reference_model", None) or _tmb.create_reference_model
+    def _safe_create_reference_model(model, *args, **kwargs):
+        try:
+            return _orig_create_ref(model, *args, **kwargs)
+        except Exception as e:
+            print(f"[*] Reference model creation skipped (avoiding OOM/deepcopy): {e}")
+            return None
+    _grpo_mod.create_reference_model = _safe_create_reference_model
+    _tmb.create_reference_model = _safe_create_reference_model
+
+    _trainer_kwargs = dict(
         model=model,
         processing_class=tokenizer,
         reward_funcs=[get_combined_reward_fn(mode="step-grpo", stage_steps=50)],
         args=training_args,
         train_dataset=train_dataset,
-        callbacks=[StepTrackerCallback()]
+        callbacks=[StepTrackerCallback(), DriveUploadCallback(training_args.output_dir)]
     )
+
+    # Pass ref_model=None directly if the trainer signature supports it
+    _trainer_params = set(_inspect.signature(GRPOTrainer.__init__).parameters)
+    if "ref_model" in _trainer_params:
+        _trainer_kwargs["ref_model"] = None
+
+    # E. Trainer Launch
+    trainer = GRPOTrainer(**_trainer_kwargs)
+
+    # Dynamically bind custom LambdaLR scheduler (Warmup 10, Peak 1e-5 to 150, linear decay to 200)
+    import types
+    def custom_create_scheduler(self, num_training_steps: int, optimizer: torch.optim.Optimizer = None):
+        from torch.optim.lr_scheduler import LambdaLR
+        def lr_lambda(current_step: int):
+            if current_step < 10:
+                return float(current_step) / 10.0
+            elif current_step < 150:
+                return 1.0
+            elif current_step < 200:
+                return 1.0 - float(current_step - 150) / 50.0
+            else:
+                return 0.0
+        self.lr_scheduler = LambdaLR(self.optimizer if optimizer is None else optimizer, lr_lambda)
+        self._created_lr_scheduler = True
+        return self.lr_scheduler
+
+    trainer.create_scheduler = types.MethodType(custom_create_scheduler, trainer)
+
+
 
     print("[*] Commencing reinforcement learning loop...")
     trainer.train()

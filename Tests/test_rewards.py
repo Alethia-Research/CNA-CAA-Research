@@ -8,7 +8,8 @@ from rewards import (
     format_reward_fn,
     math_correctness_reward_fn,
     p_grpo_format_reward_fn,
-    step_grpo_reward_fn
+    step_grpo_reward_fn,
+    tag_spam_penalty_fn
 )
 
 def test_extract_xml_answer():
@@ -109,6 +110,42 @@ def test_step_grpo_reward_fn():
     # Unclosed fallback: 0.99^2 = 0.9801
     assert abs(rewards[5] - 0.9801) < 1e-6
 
+def test_tag_spam_penalty_fn():
+    """Verify the electrified fence catches all tag-spam variants."""
+    prompts = [""] * 7
+    completions = [
+        # 1. Clean completion with only <think> — no penalty
+        "<think>Let me calculate step by step.\n16 - 3 = 13\n13 - 4 = 9\n9 * 2 = 18</think>\nThe answer is 18.",
+        # 2. HTML tag spam: <p>, <br>, <strong> — 3 unique types -> -0.9
+        "<think>Let me calculate\n<p>Eggs: 16</p>\n<br>\n<strong>Result: 18</strong></think>\n18",
+        # 3. Digit tags: <1>, <2>, <3> — 1 unique type (__digit__) -> -0.3
+        "<think>Step <1> get eggs\nStep <2> subtract\nStep <3> multiply</think>\n18",
+        # 4. Invented tags: <calculate>, <result> — 2 unique types -> -0.6
+        "<think><calculate>16 - 3 = 13</calculate>\n<result>13 - 4 = 9</result></think>\n18",
+        # 5. Mixed HTML + digit + invented — 4 unique types -> -1.2
+        "<think><li>Eggs: 16</li>\n<b>Bold text</b>\n<1>Subtract 3</1>\n<answer>18</answer></think>\n18",
+        # 6. Mega spam — 6+ unique types should cap at -1.5
+        "<think><p>A</p><br><div><strong><ul><li>B</li></ul></strong></div></think>\n18",
+        # 7. No tags at all — no penalty
+        "Just plain text reasoning. 16 - 3 = 13. 13 - 4 = 9. 9 * 2 = 18.",
+    ]
+    penalties = tag_spam_penalty_fn(prompts, completions)
+    
+    # 1. Clean <think> only -> 0.0
+    assert penalties[0] == 0.0, f"Clean completion should get 0.0 penalty, got {penalties[0]}"
+    # 2. HTML spam (p, br, strong) -> -0.9
+    assert abs(penalties[1] - (-0.9)) < 1e-6, f"HTML spam should get -0.9, got {penalties[1]}"
+    # 3. Digit tags -> -0.3
+    assert abs(penalties[2] - (-0.3)) < 1e-6, f"Digit tags should get -0.3, got {penalties[2]}"
+    # 4. Invented tags (calculate, result) -> -0.6
+    assert abs(penalties[3] - (-0.6)) < 1e-6, f"Invented tags should get -0.6, got {penalties[3]}"
+    # 5. Mixed types -> -1.2
+    assert abs(penalties[4] - (-1.2)) < 1e-6, f"Mixed spam should get -1.2, got {penalties[4]}"
+    # 6. Mega spam -> capped at -1.5
+    assert abs(penalties[5] - (-1.5)) < 1e-6, f"Mega spam should cap at -1.5, got {penalties[5]}"
+    # 7. No tags at all -> 0.0
+    assert penalties[6] == 0.0, f"No tags should get 0.0 penalty, got {penalties[6]}"
+
 if __name__ == "__main__":
     print("[*] Running unit tests...")
     test_extract_xml_answer()
@@ -116,4 +153,5 @@ if __name__ == "__main__":
     test_math_correctness_reward_fn()
     test_p_grpo_format_reward_fn()
     test_step_grpo_reward_fn()
+    test_tag_spam_penalty_fn()
     print("[+] All reward tests passed successfully!")

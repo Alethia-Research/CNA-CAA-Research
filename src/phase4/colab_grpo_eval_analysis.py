@@ -142,10 +142,13 @@ def extract_predicted_number(text):
 def is_mathematically_equivalent(s1: str, s2: str) -> bool:
     if not s1 or not s2:
         return False
+    # Clean commas to prevent float conversion crashes
+    s1_clean = s1.replace(",", "").strip()
+    s2_clean = s2.replace(",", "").strip()
     try:
-        return float(s1) == float(s2)
+        return float(s1_clean) == float(s2_clean)
     except ValueError:
-        return s1.strip().lower() == s2.strip().lower()
+        return s1_clean.lower() == s2_clean.lower()
 
 def get_all_tags(text):
     return re.findall(r"</?(\w+)>", text)

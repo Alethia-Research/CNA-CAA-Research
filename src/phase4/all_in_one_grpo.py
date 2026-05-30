@@ -152,10 +152,13 @@ def extract_xml_answer(text: str) -> str:
 def is_mathematically_equivalent(s1: str, s2: str) -> bool:
     if not s1 or not s2:
         return False
+    # Clean commas to prevent float conversion crashes
+    s1_clean = s1.replace(",", "").strip()
+    s2_clean = s2.replace(",", "").strip()
     try:
-        return float(s1) == float(s2)
+        return float(s1_clean) == float(s2_clean)
     except ValueError:
-        return s1.strip().lower() == s2.strip().lower()
+        return s1_clean.lower() == s2_clean.lower()
 
 def format_reward_fn(prompts, completions, **kwargs) -> list[float]:
     """
@@ -354,6 +357,50 @@ class StepTrackerCallback(TrainerCallback):
                 print("[+] VERIFICATION SUCCESS: 100% gradient insulation confirmed! All frozen layers have 0.0 gradient norm.")
             print("="*50 + "\n")
 
+class DriveUploadCallback(TrainerCallback):
+    """Mounts Google Drive and copies each checkpoint after it is saved."""
+
+    def __init__(self, output_dir, drive_dest=None):
+        super().__init__()
+        import shutil
+        self.output_dir = output_dir
+        _run = os.path.basename(os.path.abspath(output_dir))
+        self.drive_dest = drive_dest or f"/content/drive/MyDrive/grpo_checkpoints/{_run}"
+        self._mounted = False
+        self._try_mount()
+
+    def _try_mount(self):
+        try:
+            if os.path.ismount("/content/drive"):
+                self._mounted = True
+                os.makedirs(self.drive_dest, exist_ok=True)
+                print(f"[+] Drive already mounted → {self.drive_dest}")
+                return
+            from google.colab import drive as _gd
+            _gd.mount("/content/drive", force_remount=False)
+            self._mounted = True
+            os.makedirs(self.drive_dest, exist_ok=True)
+            print(f"[+] Drive mounted → {self.drive_dest}")
+        except Exception as _e:
+            print(f"[!] Drive mount failed ({_e}) — checkpoints local only.")
+
+    def on_save(self, args, state, control, **kwargs):
+        if not self._mounted:
+            return
+        try:
+            import shutil
+            ckpt_dir = os.path.join(self.output_dir, f"checkpoint-{state.global_step}")
+            if not os.path.isdir(ckpt_dir):
+                ckpt_dir = self.output_dir
+            zip_name = f"save_step_{state.global_step}"
+            zip_base = os.path.join(self.drive_dest, zip_name)
+            if os.path.exists(zip_base + ".zip"):
+                os.remove(zip_base + ".zip")
+            shutil.make_archive(zip_base, "zip", root_dir=ckpt_dir)
+            print(f"[+] Step {state.global_step} → {zip_name}.zip uploaded to Drive.")
+        except Exception as _e:
+            print(f"[!] Drive upload failed at step {state.global_step}: {_e}")
+
 def get_combined_reward_fn(mode="step-grpo", stage_steps=50):
     """
     Combines formatting and correctness rewards and dynamically transitions
@@ -510,7 +557,10 @@ James runs 540 meters per week.
     train_dataset = load_dataset("json", data_files=dataset_path, split="train")
     
     # Configure GRPOTrainer
-    training_args = GRPOConfig(
+    import inspect as _inspect
+    _grpo_params = set(_inspect.signature(GRPOConfig.__init__).parameters)
+
+    training_args_kwargs = dict(
         output_dir="./grpo_cot_output",
         learning_rate=2e-5,
         per_device_train_batch_size=1,
@@ -519,13 +569,30 @@ James runs 540 meters per week.
         max_prompt_length=512,
         max_completion_length=max_completion_length,
         max_steps=max_steps,
-        use_vllm=use_vllm,
-        vllm_mode="colocate" if use_vllm else None,
         logging_steps=5,
         save_steps=50,
         optim="paged_adamw_8bit" if device == "cuda" else "adamw_torch",
         report_to="none"
     )
+
+    if use_vllm and "use_vllm" in _grpo_params:
+        training_args_kwargs["use_vllm"] = True
+        if "vllm_device" in _grpo_params:
+            training_args_kwargs["vllm_device"] = "cuda:0"
+        _vllm_optional = {
+            "vllm_gpu_memory_utilization": 0.5,
+            "vllm_dtype": "float16",
+            "vllm_mode": "colocate",
+            "vllm_enforce_eager": True,
+        }
+        for k, v in _vllm_optional.items():
+            if k in _grpo_params:
+                training_args_kwargs[k] = v
+    elif "use_vllm" in _grpo_params:
+        training_args_kwargs["use_vllm"] = False
+
+    training_args = GRPOConfig(**training_args_kwargs)
+
     
     trainer = GRPOTrainer(
         model=model,
@@ -533,7 +600,7 @@ James runs 540 meters per week.
         reward_funcs=[get_combined_reward_fn(mode=mode, stage_steps=stage_steps)],
         args=training_args,
         train_dataset=train_dataset,
-        callbacks=[StepTrackerCallback()]
+        callbacks=[StepTrackerCallback(), DriveUploadCallback(training_args.output_dir)]
     )
     
     print("[*] Launching training loop...")

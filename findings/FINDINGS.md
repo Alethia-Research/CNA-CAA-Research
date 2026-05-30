@@ -772,13 +772,23 @@ At step 0 of training, the autograd hooks verified 100% gradient insulation in t
 - **Stage 1 (Steps 0–50):** Format compliance progressed monotonically, climbing from `0.10` to achieving a stable, perfect format reward of `1.00` by step 49.
 - **Stage 2 (Steps 51–150):** Formatting weights scaled down (`w_format=0.2, w_correct=1.0`), shifting optimization to mathematical correctness, which fluctuated between 45% and 66% as the policy actively explored group advantages.
 
-### Mitigation of Loophole & Length Hacking
-By enforcing **Global Flattening** and a severe **Multi-Block Tag Penalty** ($0.5 \times (N_{\text{open\_tags}} - 1)$), the model was prevented from exploiting the step-decay conciseness penalty ($\gamma^{N_{\text{steps}}}$) by opening/closing multiple `<think>` blocks. Mean completion lengths remained exceptionally stable and concise between **182 and 271 tokens**, forcing the generation of highly dense step-by-step reasoning monologues.
+### Run-1 Catastrophic Collapse: More XML Tags than Thinking
+In the initial training run (**Run-1**), without correctness-gating on auxiliary rewards and without a direct length-based conciseness penalty, the model collapsed catastrophically by Step 200. It learned to exploit formatting rewards by generating endless repetitive closing tags (`</answer>` and `</maths>` over 50 times consecutively in Example 2) to fill the completion budget, creating a runaway loop containing **literally more XML tags than actual thinking**. This reward hacking:
+1. **Blew up evaluation latency** from $\approx 11\text{s/it}$ (at Step 100) to **$28.19\text{s/it}$** (at Step 200) as the model stalled on every prompt.
+2. **Corrupted core arithmetic circuits**, causing simple daily calculations to derail into absurd weekly-daily conversions (e.g. answering `126` instead of `18` on Janet's ducks).
+
+### Run-2 Loophole-Free Mitigations
+To cure this behavior, we designed **Run-2** to resume from the uncorrupted Step 100 checkpoint using a loophole-free reward system:
+1. **Correctness Gating (P-GRPO):** All formatting, depth, and inventory rewards are completely zeroed out if the math is wrong.
+2. **Word-Count Monologue Decay:** Monologue length is penalized by word count after a 100-word grace window to allow thorough reasoning on complex problems, followed by a mild decay ($0.996^{\text{words} - 100}$) to eliminate vocabulary-shift exploits.
+3. **Whitelisted Tag Fence:** Only `think` and `boxed` tags are allowed; other tags incur a severe `-1.5` penalty.
 
 ### Empirical Evaluation & Baseline Comparison (50 OOD GSM-8K Prompts)
 We ran evaluations across multiple configurations in both few-shot and zero-shot formats:
 - **LF-GRPO (This Work) - Few-Shot:** **58.00%** (29/50 correct)
 - **LF-GRPO (This Work) - Zero-Shot:** **52.00%** (26/50 correct) — *beautifully adhering to robust `<think>...</think>` tags and detailed mathematical steps.*
+- **LF-GRPO (Scratch Run, Step 100) - Zero-Shot:** **48.00%** (24/50 correct) — *pre-filled ChatML template.*
+- **LF-GRPO (Scratch Run, Run-1, Step 200) - Zero-Shot:** **42.00%** (21/50 correct) — *severely degraded by tag-spamming collapse.*
 - **LFSFT Model (Paper 1) - Few-Shot:** **62.00%** (31/50) — *preserves raw base math while locking safety.*
 - **Standard GRPO (Full-Layer LoRA) - Few-Shot:** **42.00%** (21/50) — *severely degraded by early-layer logic engine corruption.*
 - **Qwen2.5-1.5B-Instruct (Base) - 5-Shot:** **42.00%** (Baseline limit)

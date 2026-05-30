@@ -48,10 +48,13 @@ def extract_xml_answer(text: str) -> str:
 def is_mathematically_equivalent(s1: str, s2: str) -> bool:
     if not s1 or not s2:
         return False
+    # Clean commas to prevent float conversion crashes
+    s1_clean = s1.replace(",", "").strip()
+    s2_clean = s2.replace(",", "").strip()
     try:
-        return float(s1) == float(s2)
+        return float(s1_clean) == float(s2_clean)
     except ValueError:
-        return s1.strip().lower() == s2.strip().lower()
+        return s1_clean.lower() == s2_clean.lower()
 
 
 def format_reward_fn(prompts, completions, **kwargs) -> list[float]:
@@ -215,4 +218,35 @@ def step_grpo_reward_fn(prompts, completions, target_answer, **kwargs) -> list[f
         rewards.append(decayed_reward)
 
     return rewards
+
+
+# ── Tag-Spam Electrified Fence ──────────────────────────────────────────
+_TAG_WHITELIST = frozenset(["think"])
+
+def tag_spam_penalty_fn(prompts, completions, **kwargs) -> list[float]:
+    """Aggressive penalty for ANY tag that is not <think> or </think>.
+    Catches HTML tags, digit tags (<1>, <60>), step tags (<step1>),
+    number-word tags (<one>), and arbitrary invented tags.
+    Returns -0.3 per unique bad tag type, capped at -1.5."""
+    penalties = []
+    tag_pattern = re.compile(r"</?([a-zA-Z][a-zA-Z0-9_]*)>")
+    digit_tag_pattern = re.compile(r"</?\d+>")
+
+    for comp in completions:
+        comp_text = get_completion_text(comp)
+        bad_tag_types = set()
+
+        for match in tag_pattern.finditer(comp_text):
+            tag_name = match.group(1).lower()
+            if tag_name not in _TAG_WHITELIST:
+                bad_tag_types.add(tag_name)
+
+        if digit_tag_pattern.search(comp_text):
+            bad_tag_types.add("__digit__")
+
+        if bad_tag_types:
+            penalties.append(max(-1.5, -0.3 * len(bad_tag_types)))
+        else:
+            penalties.append(0.0)
+    return penalties
 
