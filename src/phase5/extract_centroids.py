@@ -121,15 +121,15 @@ def get_hidden_states(model_name: str, domain_samples: Dict[str, List[str]], dev
             act_cache = {}
             hooks = []
             
-            # Hook to capture output activations of MLP layer
+            # Hook to capture input activations of MLP layer
             def get_activation_hook(layer_idx):
                 def hook_fn(module, input_args, output_args):
-                    # output_args is usually a single tensor or tuple where first element is output tensor
-                    if isinstance(output_args, tuple):
-                        tensor_out = output_args[0]
+                    # input_args is a tuple where the first element is the input hidden state tensor
+                    if isinstance(input_args, tuple):
+                        tensor_in = input_args[0]
                     else:
-                        tensor_out = output_args
-                    act_cache[layer_idx] = tensor_out.detach().cpu().numpy()
+                        tensor_in = input_args
+                    act_cache[layer_idx] = tensor_in.detach().cpu().numpy()
                 return hook_fn
             
             # Register forward hooks across all layers

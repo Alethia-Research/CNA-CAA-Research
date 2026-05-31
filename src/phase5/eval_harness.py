@@ -23,7 +23,7 @@ from tqdm import tqdm
 def ensure_unzipped(path: str, temp_dir: str) -> str:
     """
     Checks if a path is a zip file, and if so, extracts it to a temporary directory.
-    Returns the path to the unzipped model directory.
+    Returns the path to the unzipped model directory containing config.json.
     """
     if path.endswith(".zip") or (os.path.isfile(path) and path.lower().endswith(".zip")):
         if os.path.exists(path):
@@ -32,6 +32,13 @@ def ensure_unzipped(path: str, temp_dir: str) -> str:
                 shutil.rmtree(temp_dir, ignore_errors=True)
             print(f"[*] Extracting zipped model {path} to {temp_dir}...")
             shutil.unpack_archive(path, temp_dir, "zip")
+            
+            # Find directory containing config.json recursively
+            for root, dirs, files in os.walk(temp_dir):
+                if "config.json" in files:
+                    print(f"[+] Found config.json in: {root}")
+                    return root
+                    
             return temp_dir
         else:
             raise FileNotFoundError(f"Zipped model file not found at: {path}")
@@ -104,45 +111,54 @@ class MoERoutingTracker:
     """
     Hooks into PyTorch modules dynamically to record expert routing activation weights
     and calculates layer-wise routing entropy to diagnose routing collapse.
+    Accumulates routing probabilities on the device to avoid CPU-GPU synchronization bottlenecks.
     """
     def __init__(self):
-        self.routing_logs = []
+        self.routing_sums = {}
+        self.counts = {}
         self.hooks = []
 
     def hook_fn(self, module_name: str):
         def hook(module, input_args, output_args):
-            # Extract output routing tensor (usually logits or probabilities)
             if isinstance(output_args, tuple):
                 routing_tensor = output_args[0]
             else:
                 routing_tensor = output_args
             
-            # Detach to avoid holding gradient graphs
-            vals = routing_tensor.detach().cpu().numpy()
-            
-            # Average routing probabilities across sequence/tokens
-            if len(vals.shape) == 3:
-                # Shape: (batch, seq_len, num_experts) -> average over seq_len
-                mean_dist = np.mean(vals, axis=1) 
-            elif len(vals.shape) == 2:
-                # Shape: (batch * seq_len, num_experts) -> average over first dim
-                mean_dist = np.mean(vals, axis=0, keepdims=True)
-            else:
-                mean_dist = vals
-
-            self.routing_logs.append({
-                "module": module_name,
-                "distribution": mean_dist.tolist()
-            })
+            with torch.no_grad():
+                # Apply softmax over the last dimension (expert routing logits) to obtain probabilities
+                probs = torch.softmax(routing_tensor.detach(), dim=-1)
+                
+                # Compute token-level counts and sum on-device
+                if len(probs.shape) == 3:
+                    # Shape: (batch, seq_len, num_experts)
+                    mean_dist = probs.mean(dim=(0, 1))
+                    count = probs.shape[0] * probs.shape[1]
+                elif len(probs.shape) == 2:
+                    # Shape: (batch_seq, num_experts)
+                    mean_dist = probs.mean(dim=0)
+                    count = probs.shape[0]
+                else:
+                    mean_dist = probs
+                    count = 1
+                
+                if module_name not in self.routing_sums:
+                    self.routing_sums[module_name] = torch.zeros_like(mean_dist)
+                    self.counts[module_name] = 0
+                
+                self.routing_sums[module_name] += mean_dist * count
+                self.counts[module_name] += count
         return hook
-
+ 
     def register(self, model: torch.nn.Module):
-        self.routing_logs = []
+        self.routing_sums = {}
+        self.counts = {}
         self.hooks = []
         registered_count = 0
         for name, module in model.named_modules():
             # Intercept custom FrankenMoE or Qwen gate routing layers
-            if any(gate_suffix in name for gate_suffix in [".mlp.gate", ".mlp.wg", ".gate", ".wg"]) and not name.endswith(".weight"):
+            # Use exact suffix matching to avoid false-positives like 'gate_proj'
+            if any(name.endswith(suffix) for suffix in [".mlp.gate", ".mlp.wg", "mlp.gate", "mlp.wg", ".gate", ".wg"]) and not name.endswith(".weight"):
                 h = module.register_forward_hook(self.hook_fn(name))
                 self.hooks.append(h)
                 registered_count += 1
@@ -155,21 +171,13 @@ class MoERoutingTracker:
         print("[*] MoERoutingTracker unregistered.")
 
     def calculate_entropy(self) -> Dict[str, float]:
-        if not self.routing_logs:
+        if not self.routing_sums:
             return {}
-        
-        grouped = {}
-        for log in self.routing_logs:
-            mod = log["module"]
-            if mod not in grouped:
-                grouped[mod] = []
-            grouped[mod].extend(log["distribution"])
             
         entropies = {}
-        for mod, dists in grouped.items():
-            arr = np.array(dists) # Shape: (N, num_experts)
-            mean_prob = np.mean(arr, axis=0)
-            # Safe normalize
+        for mod, running_sum in self.routing_sums.items():
+            # Compute average routing probability across the run, move to CPU only here
+            mean_prob = (running_sum / (self.counts[mod] + 1e-8)).cpu().numpy()
             mean_prob = mean_prob / (np.sum(mean_prob) + 1e-8)
             # Shannon Entropy (base 2)
             entropy = -np.sum(mean_prob * np.log2(mean_prob + 1e-8))
@@ -184,7 +192,13 @@ def load_evaluation_model(model_path: str, load_in_4bit: bool = True) -> Tuple[A
     device_map = "auto" if torch.cuda.is_available() else None
     torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
     
-    tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+    try:
+        tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+    except Exception as e:
+        print(f"[-] Warning: Failed to load tokenizer from {model_path} ({e}).")
+        print("[*] Falling back to base model tokenizer 'unsloth/Qwen2.5-1.5B-Instruct'...")
+        tokenizer = AutoTokenizer.from_pretrained("unsloth/Qwen2.5-1.5B-Instruct", trust_remote_code=True)
+        
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
         
@@ -339,8 +353,22 @@ def run_evaluation_suite(model, tokenizer, math_data: List[Dict[str, str]], is_m
         total_time = 0.0
         
         for idx, item in enumerate(tqdm(math_data, desc="Math Sweep")):
-            question = item["question"]
-            gold = extract_ground_truth_math(item["answer"])
+            if "question" in item:
+                question = item["question"]
+            elif "prompt" in item:
+                if isinstance(item["prompt"], list):
+                    question = next((msg["content"] for msg in reversed(item["prompt"]) if msg["role"] == "user"), "")
+                else:
+                    question = str(item["prompt"])
+            else:
+                question = ""
+                
+            if "answer" in item:
+                gold = extract_ground_truth_math(item["answer"])
+            elif "target_answer" in item:
+                gold = str(item["target_answer"])
+            else:
+                gold = ""
             
             messages = [
                 {"role": "system", "content": SYSTEM_PROMPT},
