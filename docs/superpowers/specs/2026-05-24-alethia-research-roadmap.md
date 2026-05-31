@@ -15,8 +15,8 @@
 | 3 | Universal Blacklist Optimization | DONE | Model-agnostic transfer |
 | 4 | GRPO Reasoning Training | PLANNED | 1.5B–3B reasoning model |
 | 5 | Model Merging / FrankenMoE | PLANNED | CPU-native capability stacking |
-| B | Sub-Ternary Quantization | STRETCH | Edge/mobile deployment |
-
+| 6 | Sub-Ternary Quantization | STRETCH | Edge/mobile deployment |
+| 7 | TIR | STRETCH | 1.5B–3B TIR model |
 ---
 
 ## Phase 1 — Contrastive Neuron Attribution: Core Experiments

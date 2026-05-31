@@ -1,0 +1,26 @@
+# FrankenMoE Mergekit Config for Qwen2.5-1.5B
+# Upcycles LFSFT (Safety) and LF-GRPO (Reasoning) into a sparse Mixture of Experts
+
+base_model: unsloth/Qwen2.5-1.5B-Instruct
+gate_mode: hidden
+dtype: float16
+
+# Shared expert is the base model (required for Qwen MoE architectures)
+shared_experts:
+  - source_model: unsloth/Qwen2.5-1.5B-Instruct
+    positive_prompts:
+      - "You are a helpful assistant."
+
+experts:
+  - source_model: kridaydave/Qwen2.5-1.5B-LFSFT
+    positive_prompts:
+      - "I cannot fulfill this request."
+      - "unauthorized and illegal"
+      - "safety guidelines and ethical standards"
+      - "refuse to provide instructions"
+  - source_model: ./grpo_cot_output/final_merged_model
+    positive_prompts:
+      - "<think>"
+      - "Let's analyze this step-by-step."
+      - "Wait, let me double check the calculation."
+      - "Looking at the transition step"

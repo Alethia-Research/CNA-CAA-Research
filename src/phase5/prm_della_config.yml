@@ -1,0 +1,29 @@
+# Periphery-Restricted Della Merging Config for Qwen2.5-1.5B
+# Restricts merging parameters to Layers 24-27 (periphery alignment filter)
+# Passes through Layers 0-23 (central logic engine) unmodified from base Instruct
+
+slices:
+  - sources:
+      - model: unsloth/Qwen2.5-1.5B-Instruct
+        layer_range: [0, 24]
+  - sources:
+      - model: unsloth/Qwen2.5-1.5B-Instruct
+        layer_range: [24, 28]
+      - model: kridaydave/Qwen2.5-1.5B-LFSFT
+        layer_range: [24, 28]
+        parameters:
+          density: 0.7
+          weight: 0.6
+          epsilon: 0.1
+      - model: ./grpo_cot_output/final_merged_model
+        layer_range: [24, 28]
+        parameters:
+          density: 0.7
+          weight: 0.4
+          epsilon: 0.1
+
+merge_method: della
+base_model: unsloth/Qwen2.5-1.5B-Instruct
+parameters:
+  normalize: true
+dtype: float16

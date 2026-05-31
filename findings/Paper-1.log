@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.28 (MiKTeX 25.12) (preloaded format=pdflatex 2026.5.27)  31 MAY 2026 13:02
+This is pdfTeX, Version 3.141592653-2.6-1.40.28 (MiKTeX 25.12) (preloaded format=pdflatex 2026.5.27)  31 MAY 2026 13:05
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -799,8 +799,8 @@ File: t1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 pdftex.def
 File: l3backend-pdftex.def 2025-10-09 L3 backend support: PDF output (pdfTeX)
 \l__color_backend_stack_int=\count348
-) (C:\Users\NewAdmin\Desktop\Research\findings\paper_draft.aux)
-\openout1 = `paper_draft.aux'.
+) (C:\Users\NewAdmin\Desktop\Research\findings\Paper-1.aux)
+\openout1 = `Paper-1.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 86.
 LaTeX Font Info:    ... okay on input line 86.
@@ -882,10 +882,10 @@ s.cfg
 File: epstopdf-sys.cfg 2021/03/18 v2.0 Configuration of epstopdf for MiKTeX
 ))
 Package hyperref Info: Link coloring ON on input line 86.
- (C:\Users\NewAdmin\Desktop\Research\findings\paper_draft.out)
-(C:\Users\NewAdmin\Desktop\Research\findings\paper_draft.out)
+ (C:\Users\NewAdmin\Desktop\Research\findings\Paper-1.out)
+(C:\Users\NewAdmin\Desktop\Research\findings\Paper-1.out)
 \@outlinefile=\write4
-\openout4 = `paper_draft.out'.
+\openout4 = `Paper-1.out'.
 
 LaTeX Info: Redefining \microtypecontext on input line 86.
 Package microtype Info: Applying patch `item' on input line 86.
@@ -1082,18 +1082,18 @@ Package pdftex.def Info: figures/LFSFT_graphic.png  used on input line 766.
 (pdftex.def)             Requested size: 399.29463pt x 248.56021pt.
  [19] [20 <C:/Users/NewAdmin/Desktop/Research/findings/figures/LFSFT_graphic.pn
 g>] [21] [22] [23] [24] [25] [26] [27]
-(C:\Users\NewAdmin\Desktop\Research\findings\paper_draft.aux)
+(C:\Users\NewAdmin\Desktop\Research\findings\Paper-1.aux)
  ***********
 LaTeX2e <2025-11-01>
 L3 programming layer <2025-12-24>
  ***********
-Package rerunfilecheck Info: File `paper_draft.out' has not changed.
+Package rerunfilecheck Info: File `Paper-1.out' has not changed.
 (rerunfilecheck)             Checksum: A2B3783276ABDC4C9316F6B7B9DC4176;19904.
  ) 
 Here is how much of TeX's memory you used:
  25900 strings out of 467871
- 466954 string characters out of 5416924
- 1082735 words of memory out of 5000000
+ 466886 string characters out of 5416924
+ 1082723 words of memory out of 5000000
  53841 multiletter control sequences out of 15000+600000
  722254 words of font info for 262 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
@@ -1123,8 +1123,8 @@ l/Programs/MiKTeX/fonts/type1/public/lm/lmtt9.pfb><C:/Users/NewAdmin/AppData/Lo
 cal/Programs/MiKTeX/fonts/type1/public/amsfonts/symbols/msam10.pfb><C:/Users/Ne
 wAdmin/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/symbols/msbm10
 .pfb>
-Output written on C:\Users\NewAdmin\Desktop\Research\findings\paper_draft.pdf (
-27 pages, 1613737 bytes).
+Output written on C:\Users\NewAdmin\Desktop\Research\findings\Paper-1.pdf (27 p
+ages, 1613737 bytes).
 PDF statistics:
  701 PDF objects out of 1000 (max. 8388607)
  185 named destinations out of 1000 (max. 500000)

@@ -152,16 +152,16 @@ CNA identifies MLP `down_proj` neurons whose activations differentially correlat
 | 1. Introduction | Paper_1_Draft.md §1 | Motivation, contributions |
 | 2. Background | Paper_1_Draft.md §3 | CNA formal spec |
 | 3. Related Work | Paper_1_Draft.md §2 | Circuits, superposition, ROME, RLHF degradation |
-| 4. Safety Circuits | phase2_compilation.md §3–4 | Cross-model localization, 4-point curve, harm-threshold |
-| 5. Bypass Scaling Law | phase2_compilation.md §6 | 4-point OLS, α=1.76, β=2.71, R²=0.922 |
-| 6. Sycophancy Circuits | phase2_compilation.md §7 | Density contrast, causal gap |
-| 7. Factual Steering | phase2_compilation.md §8 | Signed fix, context-repair, causal competition |
-| 8. CNA vs CAA | phase1_compilation.md §7 | Quality comparison, collapse fingerprint |
-| 9. Universal Blacklists | phase3_compilation.md §2–4 | Variance heuristic, 54% transfer, causal pruning |
-| 10. LFSFT | phase3_compilation.md §6–8 | GSM-8K preservation, HumanEval trade-off |
-| 11. GRPO & LF-GRPO | phase4_compilation.md §3–8 | 42%→58% validation, reward hacking, schema generalization |
+| 4. Safety Circuits | Phase 2/phase2_compilation.md §3–4 | Cross-model localization, 4-point curve, harm-threshold |
+| 5. Bypass Scaling Law | Phase 2/phase2_compilation.md §6 | 4-point OLS, α=1.76, β=2.71, R²=0.922 |
+| 6. Sycophancy Circuits | Phase 2/phase2_compilation.md §7 | Density contrast, causal gap |
+| 7. Factual Steering | Phase 2/phase2_compilation.md §8 | Signed fix, context-repair, causal competition |
+| 8. CNA vs CAA | Phase 1/phase1_compilation.md §7 | Quality comparison, collapse fingerprint |
+| 9. Universal Blacklists | Phase 3/phase3_compilation.md §2–4 | Variance heuristic, 54% transfer, causal pruning |
+| 10. LFSFT | Phase 3/phase3_compilation.md §6–8 | GSM-8K preservation, HumanEval trade-off |
+| 11. GRPO & LF-GRPO | Phase 4/phase4_compilation.md §3–8 | 42%→58% validation, reward hacking, schema generalization |
 | 12. Unified Theory Discussion | unified_theory_synthesis.md | Periphery Alignment synthesis, sequential pipeline |
-| 13. Limitations | phase1_compilation.md §15 + phase4_compilation.md §12 | n=5 prompts, 2-arch constraint, 150-step ceiling |
+| 13. Limitations | Phase 1/phase1_compilation.md §15 + Phase 4/phase4_compilation.md §12 | n=5 prompts, 2-arch constraint, 150-step ceiling |
 | 14. Conclusion | — | Code release, auditable safety circuit format |
 
 ---
@@ -170,12 +170,12 @@ CNA identifies MLP `down_proj` neurons whose activations differentially correlat
 
 | Figure | Description | Source Data |
 |--------|------------|-------------|
-| Fig 1 | Cross-model safety circuit layer distribution (stacked bar, 4 models) | phase2_compilation.md §5 |
-| Fig 2 | Bypass threshold scaling curve (log-log, 4 points + OLS fit) | phase2_compilation.md §6 |
-| Fig 3 | Ablation sweep comparison (LFSFT vs Control vs Base, refusal% by k) | phase3_compilation.md §7 |
-| Fig 4 | Factual context-repair examples (5 rows x 4 columns) | phase2_compilation.md §8 |
-| Fig 5 | GRPO training convergence (format reward, correctness reward by step) | phase4_compilation.md §4 |
-| Fig 6 | Standard GRPO vs LF-GRPO vs LFSFT bar chart (OOD accuracy) | phase4_compilation.md §8 |
+| Fig 1 | Cross-model safety circuit layer distribution (stacked bar, 4 models) | Phase 2/phase2_compilation.md §5 |
+| Fig 2 | Bypass threshold scaling curve (log-log, 4 points + OLS fit) | Phase 2/phase2_compilation.md §6 |
+| Fig 3 | Ablation sweep comparison (LFSFT vs Control vs Base, refusal% by k) | Phase 3/phase3_compilation.md §7 |
+| Fig 4 | Factual context-repair examples (5 rows x 4 columns) | Phase 2/phase2_compilation.md §8 |
+| Fig 5 | GRPO training convergence (format reward, correctness reward by step) | Phase 4/phase4_compilation.md §4 |
+| Fig 6 | Standard GRPO vs LF-GRPO vs LFSFT bar chart (OOD accuracy) | Phase 4/phase4_compilation.md §8 |
 | Fig 7 | Periphery Alignment architecture diagram (layers, flow) | unified_theory_synthesis.md |
 
 ---
@@ -195,6 +195,6 @@ CNA identifies MLP `down_proj` neurons whose activations differentially correlat
 
 ## References
 
-Same corpus as phase1_compilation.md + phase4_compilation.md references.
+Same corpus as Phase 1/phase1_compilation.md + Phase 4/phase4_compilation.md references.
 
 *Last updated: 2026-05-28*
